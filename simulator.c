@@ -89,16 +89,6 @@ typedef struct shared_memory{
 
 } shared_memory_t;
 
-//Protect calls to rand() with a mutex as rand () accesses a global variable
-//containing the current random seed.)
-
-typedef struct protect_rand{
-    pthread_mutex_t mutex_pr;
-
-} protected_rand;
-
-
-
 int random_parking_time(){
     //lock mutex
     pthread_mutex_lock(&pr->mutex_pr);

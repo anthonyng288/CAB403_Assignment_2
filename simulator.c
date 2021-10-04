@@ -10,8 +10,10 @@
 #include <string.h>
 
 
-pthread_mutex_t cp_mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t cp_condvar = PTHREAD_COND_INITIALIZER;
+int shm_fd;
+volatile void *shm;
+pthread_mutex_t alarm_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t alarm_condvar = PTHREAD_COND_INITIALIZER;
 
 #define LEVELS 5
 #define ENTRANCES 5
@@ -89,6 +91,15 @@ typedef struct shared_memory{
 
 } shared_memory_t;
 
+//Protect calls to rand() with a mutex as rand () accesses a global variable
+//containing the current random seed.)
+
+typedef struct protect_rand{
+    pthread_mutex_t mutex_pr;
+
+} protected_rand;
+
+
 int random_parking_time(){
     //lock mutex
     pthread_mutex_lock(&pr->mutex_pr);
@@ -96,5 +107,15 @@ int random_parking_time(){
     pthread_mutex_unlock(&pr->mutex_pr);
     
     return parking_time;
+
+}
+
+int random_car_creation_time(){
+    //lock mutex
+    pthread_mutex_lock(&pr->mutex_pr);
+    int creation_time = rand() 100+1;
+    pthread_mutex_unlock(&pr->mutex_pr);
+    
+    return creation_time;
 
 }

@@ -7,6 +7,7 @@ pragma once
 #include <sys/types.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <string.h>
 
 
 pthread_mutex_t cp_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -69,7 +70,7 @@ typedef struct park_exit{
 
 
 
-typedef struct level{
+typedef struct park_levels{
 
     LPR lpr_LVL;
     temp_sensor ts;
@@ -84,7 +85,26 @@ typedef struct shared_memory{
 
     entrance_s ent;
     exit_s ext;
+    level lvl;
 
 } shared_memory_t;
 
+//Protect calls to rand() with a mutex as rand () accesses a global variable
+//containing the current random seed.)
 
+typedef struct protect_rand{
+    pthread_mutex_t mutex_pr;
+
+} protected_rand;
+
+
+
+int random_parking_time(){
+    //lock mutex
+    pthread_mutex_lock(&pr->mutex_pr);
+    int parking_time = rand() 10000+100;
+    pthread_mutex_unlock(&pr->mutex_pr);
+    
+    return parking_time;
+
+}

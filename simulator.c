@@ -119,3 +119,39 @@ int random_car_creation_time(){
     return creation_time;
 
 }
+
+int random_license_plate(protected_rand* pr){
+    //lock mutex
+    pthread_mutex_lock(&pr->mutex_pr);
+    //Randomise if the car will have a valid license plate from hash table or a random plate
+    //Random plate could be one of the list, but it is unlikely
+    int valid = rand() % 2;
+    
+
+    char plate[];
+    //char digits[10] = {"0123456789"};
+    
+    //if the car plate is random
+    //License plates from the hash table are 3 numbers then 3
+    //letters so we will asuume that format
+    if valid == 0{
+        //random plate
+
+        for( i = 0 ; i < 3 ; i++ ) {
+        strncat(plate, rand() % 10, 1);
+        }
+
+        for( i = 0 ; i < 3 ; i++ ) {
+        strncat(plate,'A' + (rand() % 26, 1);
+        }
+
+    }
+
+    //if from the hash table
+    else {
+        //plate from hash table
+        plate = 0;
+    }
+    pthread_mutex_unlock(&pr->mutex_pr);
+    return plate;
+}

@@ -1,48 +1,20 @@
- hashtable
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <sys/mman.h>
+#include <sys/types.h>
 #include <fcntl.h>
 #include <string.h>
-
+#include <time.h>
+#include <pthread.h>
+#include <unistd.h>
 #include "shm.h"
+#pragma once
 
 
 // Global variables
 shared_memory_t shm;
-
-
-// Access a segment of shared memory
-// returns: true if successfull, false if failed
-
-
-int main()
-{
-    // Create shared memory segment
-    if(!create_shared_object(&shm, SHM_NAME)){
-        printf("Creation of shared memory failed\n");
-    } else{
-        printf("Creation of shared memory successful\n");
-    }
-    
-    return 0;
-}
-
-
-
-
-#pragma once
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
-#include <pthread.h>
-#include <sys/mman.h>
-#include <sys/types.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <string.h>
-
 
 int shm_fd;
 volatile void *shm;
@@ -188,4 +160,20 @@ int random_license_plate(protected_rand* pr){
     }
     pthread_mutex_unlock(&pr->mutex_pr);
     return plate;
+}
+
+// Access a segment of shared memory
+// returns: true if successfull, false if failed
+
+
+int main()
+{
+    // Create shared memory segment
+    if(!create_shared_object(&shm, SHM_NAME)){
+        printf("Creation of shared memory failed\n");
+    } else{
+        printf("Creation of shared memory successful\n");
+    }
+    
+    return 0;
 }

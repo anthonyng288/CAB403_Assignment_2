@@ -3,6 +3,8 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <fcntl.h>
+#include <pthread.h>
 
 
 #define SHM_SIZE 2920
@@ -54,7 +56,7 @@ typedef struct p_enterance {
 // Data struct for one exit
 typedef struct p_exit
 {
-    pc_lpr_t lpt;
+    pc_lpr_t lpr;
     pc_boom_t boom;
 
 } p_exit_t;
@@ -82,9 +84,7 @@ typedef struct shared_data {
 
 } shared_data_t;
 
-
-
-typedef struct shared_memory {
+typedef struct shared_mem {
     /// The name of the shared memory object.
     const char* name;
 
@@ -93,45 +93,4 @@ typedef struct shared_memory {
 
     /// Address of the shared data block. 
     shared_data_t *data;
-} shared_memory_t;
-
-// Create a shared memory segment
-// returns: true if successful, false if failed
-bool create_shared_object( shared_memory_t* shm, const char* share_name ) {
-
-    if (shm->name != NULL)
-    {
-        shm_unlink(shm->name);
-    }
-    
-    
-    shm->name = share_name;
-    if ((shm->fd =shm_open(shm->name, O_CREAT | O_RDWR, 0666)) < 0)
-    {
-        shm->data = NULL;
-        return false;
-    }
-
-    if (ftruncate(shm->fd, SHM_SIZE) != 0){
-        shm->data = NULL;
-        return false;
-    }
-
-    if ((shm->data = mmap(0, SHM_SIZE, PROT_WRITE, MAP_SHARED, shm->fd, 0)) == MAP_FAILED){
-        return false;
-    }
-
-    return true;
-
-
-}
-
-bool get_shared_object( shared_memory_t* shm, const char* share_name ) {
-    
-    if ((shm->fd = shm_open(share_name, O_RDWR, 0666)) < 0)
-    {
-        shm->data = NULL;
-        return false;
-    }
-}
-
+} shared_mem_t;

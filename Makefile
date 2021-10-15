@@ -1,15 +1,18 @@
 CC = gcc
-CFLAGS = -Werror -g -lpthread -lrt
+CFLAGS = -lrt -lpthread -Werror -Wall
+LDFLAGS = -lrt
 
-all: carpark
+all: simulator management_system
 
-carpark: simulator.o management_system.o
+simulator: simulator.o
 
 simulator.o: simulator.c
+
+management_system: management_system.o
 
 management_system.o: management_system.c
 
 clean:
-	rm -f carpark *.o
+	rm -f sim *.o
 
-.PHONY: all clean
+.PHONY: all cleanW

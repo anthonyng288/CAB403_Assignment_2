@@ -16,6 +16,7 @@
 #define PLATES_FILE "Plates.txt"
 #define HASHTABLE_BUCKETS 100
 
+
 // Global variables
 shared_mem_t shm;
 
@@ -165,7 +166,56 @@ bool search_plate(htab_t *h, u_char *input){
     }
 }
 
+/*
 
+//Ensures that there is room in the car park before
+//allowing new vehicles in (number of cars < number of levels * the number of cars per level).
+
+bool cp_has_space (int num_cars){
+
+    if num_cars < (LEVELS * LEVEL_CAPACITY){
+        return true;
+    }
+    else{
+        return false;
+    }
+}
+
+//Chooses a random available level
+char available_level(){
+    
+}
+
+
+//Determine what message to input in the entry sign for the car
+// conditions:
+// input: if the plate is or not allowed in
+// input: if the carpark has space or not
+char entry_message( bool search_plate, bool cp_has_space){
+    
+    //
+    if(cp_has_space){
+        if (search_plate){
+            //show a character between ‘1’ and ‘5’ 
+            //floor the driver should park on
+            return available_level();
+
+        }
+        else{
+            //If the driver is unable to access the car park due to not being in the access file, the
+            //sign will show the character ‘X’
+            ;
+            return 'X';
+        }
+    }
+    else{
+        // If the driver is unable to access the car park due to it being full, the sign will show the
+        //character ‘F
+        return 'F';
+    }
+}
+
+<<<<<<< HEAD
 //Plate Level Linked list 
 typedef struct plate_level plate_level_t;
 
@@ -181,6 +231,9 @@ struct node{
     node_t next;
 }
 
+=======
+*/
+>>>>>>> 6e2ef3fa330ad1b9774c2421745fcd6d9ac120a3
 
 int main(){
 

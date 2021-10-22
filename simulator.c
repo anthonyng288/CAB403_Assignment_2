@@ -125,11 +125,11 @@ typedef struct protect_rand{
 } protected_rand;
 
 // There were a few errors preventing compilation, commented out for now
-/*
+
 int random_parking_time(){
     //lock mutex
     pthread_mutex_lock(&pr->mutex_pr);
-    int parking_time = rand() 10000+100;
+    int parking_time = rand() % 10000+100;
     pthread_mutex_unlock(&pr->mutex_pr);
     
     return parking_time;
@@ -139,13 +139,13 @@ int random_parking_time(){
 int random_car_creation_time(){
     //lock mutex
     pthread_mutex_lock(&pr->mutex_pr);
-    int creation_time = rand() 100+1;
+    int creation_time = rand() % 100+1;
     pthread_mutex_unlock(&pr->mutex_pr);
     
     return creation_time;
 
 }
-
+/*
 int random_license_plate(protected_rand* pr){
     //lock mutex
     pthread_mutex_lock(&pr->mutex_pr);
@@ -154,21 +154,22 @@ int random_license_plate(protected_rand* pr){
     int valid = rand() % 2;
     
 
-    char plate[];
+    char plate[7];
     //char digits[10] = {"0123456789"};
     
     //if the car plate is random
     //License plates from the hash table are 3 numbers then 3
     //letters so we will asuume that format
-    if valid == 0{
+    if (valid == 0){
         //random plate
 
-        for( i = 0 ; i < 3 ; i++ ) {
-        strncat(plate, rand() % 10, 1);
+        for(int i = 0 ; i < 3 ; i++ ) {
+        char number = (rand() % 10) + '0';
+        strncat(plate, number, 1);
         }
 
-        for( i = 0 ; i < 3 ; i++ ) {
-        strncat(plate,'A' + (rand() % 26, 1);
+        for(int i = 0 ; i < 3 ; i++ ) {
+        strncat(plate,'A' + (rand() % 26), 1);
         }
 
     }
@@ -176,12 +177,12 @@ int random_license_plate(protected_rand* pr){
     //if from the hash table
     else {
         //plate from hash table
-        plate = 0;
+        plate = 0; //Needs to be an array value 
     }
     pthread_mutex_unlock(&pr->mutex_pr);
     return plate;
-}*/
-
+}
+*/
 // Access a segment of shared memory
 // returns: true if successfull, false if failed
 

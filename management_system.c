@@ -174,7 +174,7 @@ bool search_plate(htab_t *h, u_char *input){
 
 bool cp_has_space (int num_cars){
 
-    if num_cars < (LEVELS * LEVEL_CAPACITY){
+    if (num_cars < (LEVELS * LEVEL_CAPACITY)){
         return true;
     }
     else{

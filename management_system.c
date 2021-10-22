@@ -165,7 +165,38 @@ bool search_plate(htab_t *h, u_char *input){
     }
 }
 
+/*
+char available_level(){
+    
+}
 
+
+//Determine what message to input in the entry sign for the car
+// conditions:
+// input: if the plate is or not allowed in
+// input: if the carpark has space or not
+char entry_message( bool search_plate, bool cp_has_space){
+    if(cp_has_space){
+        if (search_plate){
+            //show a character between ‘1’ and ‘5’ 
+            //floor the driver should park on
+            
+
+        }
+        else{
+            //If the driver is unable to access the car park due to not being in the access file, the
+            //sign will show the character ‘X’
+            return X;
+        }
+    }
+    else{
+        // If the driver is unable to access the car park due to it being full, the sign will show the
+        //character ‘F
+        return F;
+    }
+}
+
+*/
 
 int main(){
 

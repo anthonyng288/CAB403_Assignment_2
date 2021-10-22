@@ -21,9 +21,7 @@ volatile void *shm;
 pthread_mutex_t alarm_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t alarm_condvar = PTHREAD_COND_INITIALIZER;
 
-#define LEVELS 5
-#define ENTRANCES 5
-#define EXITS 5
+
 
 
 // initialises the mutex and cond for a returns 1 if it fails

@@ -166,6 +166,21 @@ bool search_plate(htab_t *h, u_char *input){
 }
 
 
+//Plate Level Linked list 
+typedef struct plate_level plate_level_t;
+
+struct plate_level{
+    char* plate;
+    int level;
+}
+
+typedef struct node node_t;
+
+struct node{
+    plate_level_t *plate_level;
+    node_t next;
+}
+
 
 int main(){
 

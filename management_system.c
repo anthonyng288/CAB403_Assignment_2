@@ -19,6 +19,7 @@
 
 // Global variables
 shared_mem_t shm;
+int levels_fullness[LEVELS];
 
 // Get shared memory segment
 bool get_shared_object( shared_mem_t* shm, const char* share_name ){
@@ -166,7 +167,7 @@ bool search_plate(htab_t *h, u_char *input){
     }
 }
 
-/*
+
 
 //Ensures that there is room in the car park before
 //allowing new vehicles in (number of cars < number of levels * the number of cars per level).
@@ -181,9 +182,26 @@ bool cp_has_space (int num_cars){
     }
 }
 
+
+
 //Chooses a random available level
 char available_level(){
     
+    //show a character between ‘1’ and ‘5’ 
+    //floor the driver should park on
+
+    for (int i = 0; i < LEVELS; i++){
+        if (levels_fullness[i] < LEVEL_CAPACITY){
+            levels_fullness[i] += 1;
+            char c = (i + 1) +'0';
+            return c;           
+        }
+    }
+
+    // If the driver is unable to access the car park due to it being full, the sign will show the
+    //character ‘F
+    return 'F';
+
 }
 
 
@@ -193,13 +211,12 @@ char available_level(){
 // input: if the carpark has space or not
 char entry_message( bool search_plate, bool cp_has_space){
     
-    //
+   //
     if(cp_has_space){
         if (search_plate){
             //show a character between ‘1’ and ‘5’ 
             //floor the driver should park on
             return available_level();
-
         }
         else{
             //If the driver is unable to access the car park due to not being in the access file, the
@@ -214,21 +231,8 @@ char entry_message( bool search_plate, bool cp_has_space){
         return 'F';
     }
 }
-*/
-//Plate Level Linked list 
-typedef struct plate_level plate_level_t;
 
-struct plate_level{
-    char* plate;
-    int level;
-}
 
-typedef struct node node_t;
-
-struct node{
-    plate_level_t *plate_level;
-    node_t next;
-}
 
 
 

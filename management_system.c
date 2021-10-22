@@ -214,8 +214,7 @@ char entry_message( bool search_plate, bool cp_has_space){
         return 'F';
     }
 }
-
-<<<<<<< HEAD
+*/
 //Plate Level Linked list 
 typedef struct plate_level plate_level_t;
 
@@ -231,9 +230,7 @@ struct node{
     node_t next;
 }
 
-=======
-*/
->>>>>>> 6e2ef3fa330ad1b9774c2421745fcd6d9ac120a3
+
 
 int main(){
 

@@ -1,6 +1,6 @@
 CC = gcc
-CFLAGS = -lrt -lpthread -Werror -Wall -g
-LDFLAGS = -lrt -lpthread
+CFLAGS = -lrt -lpthread -Werror -Wall
+LDFLAGS = -lrt
 
 all: simulator management_system
 
@@ -15,4 +15,4 @@ management_system.o: management_system.c
 clean:
 	rm -f sim *.o
 
-.PHONY: all clean
+.PHONY: all cleanW

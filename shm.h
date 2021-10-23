@@ -7,6 +7,8 @@
 #include <pthread.h>
 
 
+#define SHM_SIZE 2920
+#define SHM_NAME "PARKING"
 
 #define LEVELS 5
 #define ENTRANCES 5
@@ -21,6 +23,7 @@ typedef struct pc_lpr {
     pthread_mutex_t lock;
     pthread_cond_t cond;
     char l_plate[6];
+    char padding[2];
 
 } pc_lpr_t;
 
@@ -29,6 +32,7 @@ typedef struct pc_boom {
     pthread_mutex_t lock;
     pthread_cond_t cond;
     char status;
+    char padding[7];
 
 } pc_boom_t;
 
@@ -37,6 +41,7 @@ typedef struct pc_sign {
     pthread_mutex_t lock;
     pthread_cond_t cond;
     char display;
+    char padding[7];
 
 } pc_sign_t;
 
@@ -66,7 +71,7 @@ typedef struct p_level
     pc_lpr_t lpr;
     int16_t temp;
     u_int8_t alarm;
-    //char padding[5];
+    char padding[5];
 
 
 } p_level_t;

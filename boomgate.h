@@ -17,7 +17,7 @@
 //  must be run before partner function in manager
 //  partner function is required to run properly
 //  boomgate must start shut
-void manager_boomgate(pc_boom_t* boom){
+void * manager_boomgate(void* boom){
     struct timespec ms20req, ms20rem = {0, 20000000}; // 20 ms
     struct pc_boom *boomgate = boom;
     

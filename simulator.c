@@ -21,9 +21,15 @@ volatile void *shm;
 pthread_mutex_t alarm_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t alarm_condvar = PTHREAD_COND_INITIALIZER;
 
+#define LEVELS 5
+#define ENTRANCES 5
+#define EXITS 5
 
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> parent of c65333c (work)
 // initialises the mutex and cond for a returns 1 if it fails
 // conditions: component must be a pc component from shm.h
 // I tried to be fancy with void pointers and casting :( didn't work
@@ -97,12 +103,21 @@ bool create_shared_object( shared_mem_t* shm, const char* share_name ) {
         shm->data = NULL;
         return false;
     }
+<<<<<<< HEAD
 
     if (ftruncate(shm->fd, SHM_SIZE) != 0){
         shm->data = NULL;
         return false;
     }
 
+=======
+
+    if (ftruncate(shm->fd, SHM_SIZE) != 0){
+        shm->data = NULL;
+        return false;
+    }
+
+>>>>>>> parent of c65333c (work)
     if ((shm->data = mmap(0, SHM_SIZE, PROT_WRITE, MAP_SHARED, shm->fd, 0)) == MAP_FAILED){
         return false;
     }
@@ -181,8 +196,13 @@ int random_license_plate(protected_rand* pr){
     }
     pthread_mutex_unlock(&pr->mutex_pr);
     return plate;
+<<<<<<< HEAD
 }
 */
+=======
+}*/
+
+>>>>>>> parent of c65333c (work)
 // Access a segment of shared memory
 // returns: true if successfull, false if failed
 

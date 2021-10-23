@@ -11,15 +11,23 @@
 
 #include "shm.h"
 #include "boomgate.h"
+<<<<<<< HEAD
 
+=======
+>>>>>>> parent of c65333c (work)
 
 #define PLATES_FILE "Plates.txt"
 #define HASHTABLE_BUCKETS 100
 
+#define PLATES_FILE "Plates.txt"
+#define HASHTABLE_BUCKETS 100
 
 // Global variables
 shared_mem_t shm;
+<<<<<<< HEAD
 int levels_fullness[LEVELS];
+=======
+>>>>>>> parent of c65333c (work)
 
 // Get shared memory segment
 bool get_shared_object( shared_mem_t* shm, const char* share_name ){
@@ -169,6 +177,7 @@ bool search_plate(htab_t *h, u_char *input){
 
 
 
+<<<<<<< HEAD
 //Ensures that there is room in the car park before
 //allowing new vehicles in (number of cars < number of levels * the number of cars per level).
 
@@ -236,6 +245,8 @@ char entry_message( bool search_plate, bool cp_has_space){
 
 
 
+=======
+>>>>>>> parent of c65333c (work)
 int main(){
 
     // Access shared memory

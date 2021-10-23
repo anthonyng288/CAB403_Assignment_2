@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/time.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <time.h>
@@ -14,6 +15,7 @@
 #include "shm.h"
 // #include "boomgate.h"
 #include "defines.h"
+#include "status_display.c"
 
 
 // Global variables
@@ -50,11 +52,15 @@ typedef struct car {
 
 void bill_car(car_t* car){
     FILE* fp = fopen(BILLING_FILE, "a");
-    fprintf(fp,"sssssss\n");
+    float bill = 12.40;
+    fprintf(fp,"%s - $%.2f\n", car->lp, bill);
     fclose(fp);
     return;
 }
 
+void total_time(car_t* car) {
+
+}
 
 ////////////////////////////////
 ////        Hashtable       ////
@@ -319,10 +325,6 @@ char entry_message( bool search_plate, bool cp_has_space){
     }
 }
 
-
-
-
-
 int main(){
     // Access shared memory
     if (!get_shared_object(&shm, SHM_NAME))
@@ -344,11 +346,25 @@ int main(){
     //car_t temp = {"aaaaaa"};
 
     FILE* fp = fopen(BILLING_FILE, "w+");
-    //fprintf(fp,"sssssss\n");
+    // fprintf(fp,"sssssss\n");
     fclose(fp);
 
+    // Test status display screen
+    status_display(levels_fullness, &shm);
+
+    // printf("%ld", car.enter_time);
+
+    // `time_t` is an arithmetic time type
+    time_t now;
+ 
+    // Obtain current time
+    // `time()` returns the current time of the system as a `time_t` value
+    time(&now);
+ 
+    // Convert to local time format and print to stdout
+    printf("Today is %s", ctime(&now));
     // Wait until program closes
-    printf("Press ENTER to close the manager\n");
+    printf("\nPress ENTER to close the manager\n");
     getchar();
     
 

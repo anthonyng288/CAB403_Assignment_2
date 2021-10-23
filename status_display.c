@@ -6,8 +6,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include "shm.h"
-
-#define MAX 5
+#include "defines.h"
 int get_win_size()
 {
     struct winsize ws;
@@ -30,7 +29,6 @@ int get_win_size()
 
 void heading (char *heading, int col_width, int no_cols) {
     printf("\n");
-    printf("\n");
     for(int i=0; i<no_cols; i++) {
         printf("%-*s", col_width-1, "------------------");
     }
@@ -49,76 +47,94 @@ void heading (char *heading, int col_width, int no_cols) {
         printf("%s %-*d", heading, spacing, i+1);  
     }
     printf("\n");
-    for(int i=0; i<no_cols; i++) {
+    for(int i=0; i<MAX; i++) {
         printf("%-*s", col_width-1, "------------------");
     }
 }
-void Temp (int col_width, int no_cols, int16_t level_temp) {
+void Temp (int col_width, shared_mem_t* shm) {
     printf("\n");
-    for(int i=0; i<no_cols; i++) {
-        printf("Temperature:    %02d%*s", level_temp, col_width-19, "");  
+    for(int i=0; i<LEVELS; i++) {
+        printf("Temperature:    %02d%*s", shm->data->levels[i].temp, col_width-19, "");  
     }
 }
-void Capacity (int col_width, int no_cols, int level_capacity, int levels_fullness[]) {
+void Capacity (int col_width, int levels_fullness[]) {
     printf("\n");
-    for(int i=0; i<no_cols; i++) {
-        printf("Capacity:    %02d/%-*d", levels_fullness[i], col_width-17, level_capacity);
+    for(int i=0; i<LEVELS; i++) {
+        printf("Capacity:    %02d/%-*d", levels_fullness[i], col_width-17, LEVEL_CAPACITY);
     }
 }
-void LPR (int col_width, int no_cols, pc_lpr_t* lpr) {
+void LPR (char *heading, int col_width, shared_mem_t* shm) {
     printf("\n");
-    for(int i=0; i<no_cols; i++) {
-        printf("LPR:             %-*s", col_width-18, lpr->l_plate);
+    if(strcmp(heading, "Entrance") == 0) {
+        for(int i=0; i<ENTRANCES; i++) {
+            printf("LPR:        %-*s", col_width-13, shm->data->enterances[i].lpr.l_plate);
+        }
+    }
+    else if(strcmp(heading, "Level") == 0) {
+        for(int i=0; i<LEVELS; i++) {
+            printf("LPR:        %-*s", col_width-13, shm->data->levels[i].lpr.l_plate);
+        }
+    }
+    else if(strcmp(heading, "Exit") == 0) {
+        for(int i=0; i<EXITS; i++) {
+            printf("LPR:        %-*s", col_width-13, shm->data->exits[i].lpr.l_plate);
+        }
+    } 
+}
+void Boomgate (char *heading, int col_width, shared_mem_t* shm) {
+    printf("\n");
+    if(strcmp(heading, "Entrance") == 0) {
+        for(int i=0; i<ENTRANCES; i++) {
+            printf("Boom gate:       %-*s", col_width-18, &shm->data->enterances[i].boom.status);
+        }
+    }
+    else if(strcmp(heading, "Exit") == 0) {
+        for(int i=0; i<EXITS; i++) {
+            printf("Boom gate:       %-*s", col_width-18, &shm->data->exits[i].boom.status);
+        }
+    } 
+}
+void Screen (int col_width, shared_mem_t* shm) {
+    printf("\n");
+    for(int i=0; i<ENTRANCES; i++) {
+        printf("Screen:          %-*s", col_width-18, &shm->data->enterances[i].sign.display);
     }
 }
-void Boomgate (int col_width, int no_cols, pc_boom_t* boom) {
-    printf("\n");
-    for(int i=0; i<no_cols; i++) {
-        printf("Boom gate:       %-*s", col_width-18, &boom->status);
-    }
-}
-void Screen (int col_width, int no_cols, pc_sign_t* screen) {
-    printf("\n");
-    for(int i=0; i<no_cols; i++) {
-        printf("Screen:          %-*s", col_width-18, &screen->display);
-    }
-}
-void print_levels(int num_levels, int levels_fullness[], int level_capacity, int col_width, p_level_t* level_info) {
-    heading("Level", col_width, num_levels);
-    Temp(col_width, num_levels, level_info->temp); 
-    Capacity(col_width, num_levels, level_capacity, levels_fullness);
-    LPR(col_width, num_levels, &level_info->lpr);
+void print_levels(int levels_fullness[], int col_width, shared_mem_t* shm) {
+    heading("Level", col_width, LEVELS);
+    Temp(col_width, shm); 
+    Capacity(col_width, levels_fullness);
+    LPR("Level", col_width, shm);
     printf("\r\n");
 }
 
-void print_entrances(int num_entrances, int col_width, p_enterance_t* entrance_info) {
-    heading("Entrance", col_width, num_entrances);
-    LPR(col_width, num_entrances, &entrance_info->lpr);
-    Boomgate(col_width, num_entrances, &entrance_info->boom);
-    Screen(col_width, num_entrances, &entrance_info->sign);
+void print_entrances(int col_width, shared_mem_t* shm) {
+    heading("Entrance", col_width, ENTRANCES);
+    LPR("Entrance", col_width, shm);
+    Boomgate("Entrance",col_width, shm);
+    Screen(col_width, shm);
     printf("\r\n");
 }
 
-void print_exits(int num_exits, int col_width, p_exit_t* exit_info) {
-    heading("Exit", col_width, num_exits);
-    LPR(col_width, num_exits, &exit_info->lpr);
-    Boomgate(col_width, num_exits, &exit_info->boom);
+void print_exits(int col_width, shared_mem_t* shm) {
+    heading("Exit", col_width, EXITS);
+    LPR("Exit", col_width, shm);
+    Boomgate("Exit", col_width, shm);
     printf("\r\n");
 }
 void print_revenue() {
     printf(" \n");
-
     printf(" ---------------- \n");
     printf("| Revenue:  $%.2d|\n", 2000);
     printf(" ---------------- ");
 }
-void status_display(int num_levels, int levels_fullness[], int num_entrances, int num_exits, int level_capacity, shared_mem_t* shm){
+void status_display(int levels_fullness[], shared_mem_t* shm){
     int screen_size = get_win_size(); 
     int col_width = screen_size/MAX;  
-    printf("\e[1;1H\e[2J");
-    print_levels(num_levels, levels_fullness, level_capacity, col_width, shm->data->levels);
-    print_entrances(num_entrances, col_width, shm->data->enterances);
-    print_exits(num_exits, col_width, shm->data->exits);
+    
+    print_levels(levels_fullness, col_width, shm);
+    print_entrances(col_width, shm);
+    print_exits(col_width, shm);
 
     print_revenue();
 }

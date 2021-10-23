@@ -181,6 +181,24 @@ int random_license_plate(protected_rand* pr){
     return plate;
 }*/
 
+void rand_temp (shared_mem_t shm) {
+    srand(time(0));
+    int start_temp = (rand() % (32 - 11 + 1) + 11);
+    for (int i = 0; i < LEVELS; i++) {
+        if(shm.data->levels[i].temp == 0) {
+            // Determine a starting temperature for simulation
+            printf("You are in 0");
+            shm.data->levels[i].temp = start_temp;
+            printf("%d", shm.data->levels[i].temp);
+        } 
+        else {
+            printf("Previous temp for level %d: %d\n", i, shm.data->levels[i].temp);
+            shm.data->levels[i].temp = shm.data->levels[i].temp + (rand() % 3);
+            printf("New temp for level %d is: %d\n", i, shm.data->levels[i].temp);
+        }
+    }
+}
+
 int main()
 {
     shared_mem_t sh_mem; // shared memory
@@ -192,10 +210,18 @@ int main()
     if (!init_mem((shared_data_t*) sh_mem.data)) {
         printf("Initialization of shared memory failed\n");
     }
-    
+    // Testing random temp
+    rand_temp(sh_mem);
+    // for(int i = 0; i < LEVELS; i++) {
+    // printf("%hn", &sh_mem.data->levels[0].temp);
+    // }
+    srand(time(0));
+    // int rand_num = (rand() % 3);
+    // printf("%d", sh_mem.data->levels->temp);
+
     // Testing
-    printf("Press ENTER to end the simulation\n");
-    getchar();
+    // printf("Press ENTER to end the simulation\n");
+    // getchar();
     
 
     return 0;

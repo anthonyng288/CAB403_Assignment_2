@@ -328,11 +328,19 @@ char boomgate_func(int lpr_status){
     pc_boom_t boomgate_protocol;
     if(lpr_status == 1){ //If car authorized 
         pthread_mutex_lock(boomgate_protocol->lock);
-        boomgate_protocol->status = 'R';
-        usleep(10);// Shouls we make them sleep or should we just unlock the mutex 
-                    //for every status change?
-        boomgate_protocol->status = 'O';
-        usleep(10);
+        if(boomgate_protocol->status == 'C'){
+            usleep(10);
+            boomgate_protocol->status = 'R';
+            //set cond value
+        }
+         
+        else if(boomgate_protocol->status == 'O')
+
+        // boomgate_protocol->status = 'C';
+        // usleep(10);// Shouls we make them sleep or should we just unlock the mutex 
+        //             //for every status change?
+        // boomgate_protocol->status = 'R';
+        // usleep(10);
         //Condition Variable to tell simulator it's open
         
     }

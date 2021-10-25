@@ -21,6 +21,7 @@ shared_mem_t shm;
 bool exit_condition = false; // exit condition
 int levels_fullness[LEVELS];
 
+
 // Get shared memory segment
 bool get_shared_object( shared_mem_t* shm, const char* share_name ){
     
@@ -256,6 +257,12 @@ void cleanup_threads(thread_list_t* t_list){
     exit_condition = true;
     exit_boomgates(t_list);
 }
+
+////////////////////////////////
+////       Entering         ////
+////////////////////////////////
+
+
 //Ensures that there is room in the car park before
 //allowing new vehicles in (number of cars < number of levels * the number of cars per level).
 
@@ -319,27 +326,41 @@ char entry_message( bool search_plate, bool cp_has_space){
     }
 }
 
+
 ////////////////////////////////
 ////       Boomgates        ////
 ////////////////////////////////
 
-//Tell when to open/close boomgates
-char boomgate_func(int lpr_status){
-    pc_boom_t boomgate_protocol;
-    if(lpr_status == 1){ //If car authorized 
+//Tell when to raise boomgates
+void boomgate_func_raising(pc_boom_t boomgate_protocol){
         pthread_mutex_lock(boomgate_protocol->lock);
-        boomgate_protocol->status = 'R';
-        usleep(10);// Shouls we make them sleep or should we just unlock the mutex 
-                    //for every status change?
-        boomgate_protocol->status = 'O';
-        usleep(10);
-        //Condition Variable to tell simulator it's open
+        if(boomgate_protocol->status == 'C'){
+            // change the status automatically no waiting
+            boomgate_protocol->status = 'R';
+        }
+        pthread_cond_signal(boomgate_protocol->cond);
+        pthread_mutex_unlock(boomgate_protocol->lock);
         
-    }
+    }    
+}
+//Tell when to lower boomgates
+void boomgate_func_lowering(pc_boom_t boomgate_protocol){
+    pthread_mutex_lock(boomgate_protocol->lock);
+        if(boomgate_protocol->status == 'O'){
+            // change the status automatically no waiting
+            boomgate_protocol->status = 'L';
+            
+        }
+        pthread_cond_signal(boomgate_protocol->cond);
+        pthread_mutex_unlock(boomgate_protocol->lock);
 }
 
 
-
+// Takes the time required (millisecons)
+// and multiplies it (in case we want to make it slower for testing)
+void sleeping_beauty(int seconds){
+    usleep(seconds * MULTIPLIER);
+}
 
 
 int main(){
@@ -379,5 +400,8 @@ int main(){
 
     return 0;
 }   
+
+
+
 
 

@@ -10,3 +10,6 @@
 #define SHM_SIZE 2920
 
 #define BILLING_FILE "Billing.txt"
+
+//to increase the sleeping
+#define MULTIPLIER 1;

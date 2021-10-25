@@ -20,6 +20,7 @@
 shared_mem_t shm;
 bool exit_condition = false; // exit condition
 int levels_fullness[LEVELS];
+int multiplier = 1;
 
 // Get shared memory segment
 bool get_shared_object( shared_mem_t* shm, const char* share_name ){
@@ -256,6 +257,12 @@ void cleanup_threads(thread_list_t* t_list){
     exit_condition = true;
     exit_boomgates(t_list);
 }
+
+////////////////////////////////
+////       Entering         ////
+////////////////////////////////
+
+
 //Ensures that there is room in the car park before
 //allowing new vehicles in (number of cars < number of levels * the number of cars per level).
 
@@ -319,6 +326,7 @@ char entry_message( bool search_plate, bool cp_has_space){
     }
 }
 
+
 ////////////////////////////////
 ////       Boomgates        ////
 ////////////////////////////////
@@ -329,7 +337,7 @@ char boomgate_func(int lpr_status){
     if(lpr_status == 1){ //If car authorized 
         pthread_mutex_lock(boomgate_protocol->lock);
         if(boomgate_protocol->status == 'C'){
-            usleep(10);
+            sleeping_beauty(10);
             boomgate_protocol->status = 'R';
             //set cond value
         }
@@ -343,7 +351,10 @@ char boomgate_func(int lpr_status){
         // usleep(10);
         //Condition Variable to tell simulator it's open
         
-    }
+    }    
+
+void sleeping_beauty(int multiplier){
+    usleep(10 * multiplier);
 }
 
 
@@ -387,5 +398,8 @@ int main(){
 
     return 0;
 }   
+
+
+
 
 

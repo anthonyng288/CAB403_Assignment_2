@@ -332,17 +332,15 @@ char entry_message( bool search_plate, bool cp_has_space){
 ////////////////////////////////
 
 //Tell when to open/close boomgates
-char boomgate_func(int lpr_status){
-    pc_boom_t boomgate_protocol;
-    if(lpr_status == 1){ //If car authorized 
+void boomgate_func_raising(pc_boom_t boomgate_protocol){
         pthread_mutex_lock(boomgate_protocol->lock);
         if(boomgate_protocol->status == 'C'){
             sleeping_beauty(10);
             boomgate_protocol->status = 'R';
             //set cond value
         }
-         
-        else if(boomgate_protocol->status == 'O')
+        pthread_mutex_unlock(boomgate_protocol->lock);
+        
 
         // boomgate_protocol->status = 'C';
         // usleep(10);// Shouls we make them sleep or should we just unlock the mutex 
@@ -352,6 +350,19 @@ char boomgate_func(int lpr_status){
         //Condition Variable to tell simulator it's open
         
     }    
+}
+
+void boomgate_func_lowering(pc_boom_t boomgate_protocol){
+    pthread_mutex_lock(boomgate_protocol->lock);
+        if(boomgate_protocol->status == 'O'){
+            sleeping_beauty(10);
+            boomgate_protocol->status = 'L';
+            //set cond value
+        }
+        pthread_mutex_unlock(boomgate_protocol->lock);
+}
+
+
 
 void sleeping_beauty(int multiplier){
     usleep(10 * multiplier);

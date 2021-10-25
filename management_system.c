@@ -211,13 +211,13 @@ bool search_plate(htab_t *h, u_char *input){
 
 
 
-// Functions waits until a boomgate is signaled then opens or closes it
-void manager_boomgate(pc_boom_t* boom){
-    while (!exit_condition) {
-        sleep(1);
-    }
+// // Functions waits until a boomgate is signaled then opens or closes it
+// void manager_boomgate(pc_boom_t* boom){
+//     while (!exit_condition) {
+//         sleep(1);
+//     }
     
-}
+// }
 
 bool init_threads(thread_list_t* t_list){
     // Calculate number of boomgates
@@ -243,14 +243,14 @@ bool init_threads(thread_list_t* t_list){
     return EXIT_SUCCESS;
 }
 
-void exit_boomgates(thread_list_t* t_list){
-    for (size_t i = 0; i < ENTRANCES; i++){
-        pthread_join(t_list->boomgate_threads[i], NULL);
-    }
-    for (size_t i = 0; i < EXITS; i++){
-        pthread_join(t_list->boomgate_threads[i + EXITS], NULL);
-    }
-}
+// void exit_boomgates(thread_list_t* t_list){
+//     for (size_t i = 0; i < ENTRANCES; i++){
+//         pthread_join(t_list->boomgate_threads[i], NULL);
+//     }
+//     for (size_t i = 0; i < EXITS; i++){
+//         pthread_join(t_list->boomgate_threads[i + EXITS], NULL);
+//     }
+// }
 
 void cleanup_threads(thread_list_t* t_list){
     exit_condition = true;
@@ -316,6 +316,25 @@ char entry_message( bool search_plate, bool cp_has_space){
         // If the driver is unable to access the car park due to it being full, the sign will show the
         //character ‘F
         return 'F';
+    }
+}
+
+////////////////////////////////
+////       Boomgates        ////
+////////////////////////////////
+
+//Tell when to open/close boomgates
+char boomgate_func(int lpr_status){
+    pc_boom_t boomgate_protocol;
+    if(lpr_status == 1){ //If car authorized 
+        pthread_mutex_lock(boomgate_protocol->lock);
+        boomgate_protocol->status = 'R';
+        usleep(10);// Shouls we make them sleep or should we just unlock the mutex 
+                    //for every status change?
+        boomgate_protocol->status = 'O';
+        usleep(10);
+        //Condition Variable to tell simulator it's open
+        
     }
 }
 

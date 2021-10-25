@@ -20,7 +20,7 @@
 shared_mem_t shm;
 bool exit_condition = false; // exit condition
 int levels_fullness[LEVELS];
-int multiplier = 1;
+
 
 // Get shared memory segment
 bool get_shared_object( shared_mem_t* shm, const char* share_name ){
@@ -338,6 +338,7 @@ void boomgate_func_raising(pc_boom_t boomgate_protocol){
             // change the status automatically no waiting
             boomgate_protocol->status = 'R';
         }
+        pthread_cond_signal(boomgate_protocol->cond);
         pthread_mutex_unlock(boomgate_protocol->lock);
         
     }    
@@ -350,18 +351,16 @@ void boomgate_func_lowering(pc_boom_t boomgate_protocol){
             boomgate_protocol->status = 'L';
             
         }
+        pthread_cond_signal(boomgate_protocol->cond);
         pthread_mutex_unlock(boomgate_protocol->lock);
 }
 
 
 // Takes the time required (millisecons)
 // and multiplies it (in case we want to make it slower for testing)
-void sleeping_beauty(int seconds, int multiplier){
-    usleep(seconds * multiplier);
+void sleeping_beauty(int seconds){
+    usleep(seconds * MULTIPLIER);
 }
-
-
-
 
 
 int main(){

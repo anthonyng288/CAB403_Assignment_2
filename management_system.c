@@ -331,41 +331,33 @@ char entry_message( bool search_plate, bool cp_has_space){
 ////       Boomgates        ////
 ////////////////////////////////
 
-//Tell when to open/close boomgates
+//Tell when to raise boomgates
 void boomgate_func_raising(pc_boom_t boomgate_protocol){
         pthread_mutex_lock(boomgate_protocol->lock);
         if(boomgate_protocol->status == 'C'){
-            sleeping_beauty(10);
+            // change the status automatically no waiting
             boomgate_protocol->status = 'R';
-            //set cond value
         }
         pthread_mutex_unlock(boomgate_protocol->lock);
-        
-
-        // boomgate_protocol->status = 'C';
-        // usleep(10);// Shouls we make them sleep or should we just unlock the mutex 
-        //             //for every status change?
-        // boomgate_protocol->status = 'R';
-        // usleep(10);
-        //Condition Variable to tell simulator it's open
         
     }    
 }
-
+//Tell when to lower boomgates
 void boomgate_func_lowering(pc_boom_t boomgate_protocol){
     pthread_mutex_lock(boomgate_protocol->lock);
         if(boomgate_protocol->status == 'O'){
-            sleeping_beauty(10);
+            // change the status automatically no waiting
             boomgate_protocol->status = 'L';
-            //set cond value
+            
         }
         pthread_mutex_unlock(boomgate_protocol->lock);
 }
 
 
-
-void sleeping_beauty(int multiplier){
-    usleep(10 * multiplier);
+// Takes the time required (millisecons)
+// and multiplies it (in case we want to make it slower for testing)
+void sleeping_beauty(int seconds, int multiplier){
+    usleep(seconds * multiplier);
 }
 
 

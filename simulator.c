@@ -132,62 +132,114 @@ bool init_mem(shared_data_t* data){
 //Protect calls to rand() with a mutex as rand () accesses a global variable
 //containing the current random seed.)
 
-typedef struct protect_rand{
-    pthread_mutex_t mutex_pr;
 
-} protected_rand;
+typedef struct protect_rand{
+    pthread_mutex_t lock;
+
+} protect_rand_t;
 
 // There were a few errors preventing compilation, commented out for now
-/*
-int random_parking_time(){
+
+int random_parking_time(protect_rand_t pr){
     //lock mutex
-    pthread_mutex_lock(&pr->mutex_pr);
-    int parking_time = rand() 10000+100;
-    pthread_mutex_unlock(&pr->mutex_pr);
+    pthread_mutex_lock(&pr.lock);
+    int parking_time = rand() % 10000+100;
+    pthread_mutex_unlock(&pr.lock);
     
     return parking_time;
 }
 
-int random_car_creation_time(){
+int random_car_creation_time(protect_rand_t pr){
     //lock mutex
-    pthread_mutex_lock(&pr->mutex_pr);
-    int creation_time = rand() 100+1;
-    pthread_mutex_unlock(&pr->mutex_pr);
+    pthread_mutex_lock(&pr.lock);
+    int creation_time = rand() % 100+1;
+    pthread_mutex_unlock(&pr.lock);
     
     return creation_time;
 }
 
-int random_license_plate(protected_rand* pr){
+char * unauthorised_license(protect_rand_t pr){
+    
+    char *plate = malloc (6);
+    
+    
+     // create 3 numbers
+        for(int i = 0 ; i < 3 ; i++ ) {
+        pthread_mutex_lock(&pr.lock);
+        int num = rand() % 10;
+        pthread_mutex_unlock(&pr.lock);
+        
+        //printf("%c \n", (num + '0'));
+        
+        // convert it to a char
+        char num_c = (num + '0');
+        //strncat(plate, &num_c, 1);
+        plate[i] = num_c;
+        //printf("%s \n\n", plate);
+        
+    // create 3 letters
+    
+        for(int i = 3 ; i < 6 ; i++ ) {
+        pthread_mutex_lock(&pr.lock);
+        char letters = 'A' + (rand() % 26);
+        pthread_mutex_unlock(&pr.lock);
+        plate[i] = letters;
+        //printf("%s \n\n", plate);
+        
+        }
+    
+    }
+    //printf("%s \n\n", "uwu");
+    return plate;
+}
+// bool search_bucket(item_t *item, u_char *input){
+//     for (size_t i = 0; i < 6; i++)
+//     {
+//         if (input[i] != item->value[i])
+//         {
+//             return search_bucket(item->next, input);
+//         }
+//     }
+//     // search successfull
+//     return true;
+// }
+// Random authorised car
+// They must not be in the car park
+
+// char* random_authorised_car(protect_rand_t pr){
+   
+//     pthread_mutex_lock(&pr.lock);
+//     int num = rand() % 10;
+//     pthread_mutex_unlock(&pr.lock);
+
+
+// }
+
+char* random_license_plate(protect_rand_t pr){
     //lock mutex
-    pthread_mutex_lock(&pr->mutex_pr);
+    pthread_mutex_lock(&pr.lock);
     //Randomise if the car will have a valid license plate from hash table or a random plate
     //Random plate could be one of the list, but it is unlikely
     int valid = rand() % 2;
     
-    char plate[];
+    pthread_mutex_unlock(&pr.lock);
+
+    char* plate;
     //char digits[10] = {"0123456789"};
     
     //if the car plate is random
     //License plates from the hash table are 3 numbers then 3
     //letters so we will asuume that format
-    if valid == 0{
-        //random plate
-        for( i = 0 ; i < 3 ; i++ ) {
-        strncat(plate, rand() % 10, 1);
-        }
-        for( i = 0 ; i < 3 ; i++ ) {
-        strncat(plate,'A' + (rand() % 26, 1);
-        }
+    if (valid == 0){
+        plate = unauthorised_license(pr);
     }
     //if from the hash table
     else {
         //plate from hash table
-        plate = 0;
+        plate = "123456";
     }
-    pthread_mutex_unlock(&pr->mutex_pr);
     return plate;
-}*/
-
+}
 
 ////////////////////////////////
 ////       Boomgates        ////
@@ -231,6 +283,13 @@ int main()
     if (!init_mem((shared_data_t*) sh_mem.data)) {
         printf("Initialization of shared memory failed\n");
     }
+    // Testing random license generator
+    // protect_rand_t pr= PTHREAD_MUTEX_INITIALIZER;
+    // for (int i = 0; i < 10; i++){
+    //     char *ram;
+    //     ram = random_license_plate(pr);
+    //     printf("%s \n", ram);
+    // }
     
     // Testing
     printf("Press ENTER to end the simulation\n");

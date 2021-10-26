@@ -187,35 +187,35 @@ int random_license_plate(protected_rand* pr){
 ///////////////////////////////
 
 //Tell when to open boomgates
-void boomgate_func_open(pc_boom_t boomgate_protocol){
-        pthread_mutex_lock(boomgate_protocol->lock);
-        if(boomgate_protocol->status == 'R'){
-            // change the status to "O" after 10 milli
-            sleeping_beauty(10);
-            boomgate_protocol->status = 'O';
-        }
-        pthread_mutex_unlock(boomgate_protocol->lock);
+// void boomgate_func_open(pc_boom_t boomgate_protocol){
+//         pthread_mutex_lock(boomgate_protocol.lock);
+//         if(boomgate_protocol.status == 'R'){
+//             // change the status to "O" after 10 milli
+//             sleeping_beauty(10);
+//             boomgate_protocol.status = 'O';
+//         }
+//         pthread_mutex_unlock(boomgate_protocol.lock);
         
-    }    
-}
+//     }    
+// }
 
 //Tell when to close boomgates
-void boomgate_func_close(pc_boom_t boomgate_protocol){
-    pthread_mutex_lock(boomgate_protocol->lock);
-        if(boomgate_protocol->status == 'L'){
-            // change the status to "O" after 10 milli
-            sleeping_beauty(10);
-            boomgate_protocol->status = 'C';
-            //set cond value
-        }
-        pthread_mutex_unlock(boomgate_protocol->lock);
-}
+// void boomgate_func_close(pc_boom_t boomgate_protocol){
+//     pthread_mutex_lock(boomgate_protocol.lock);
+//         if(boomgate_protocol.status == 'L'){
+//             // change the status to "O" after 10 milli
+//             sleeping_beauty(10);
+//             boomgate_protocol.status = 'C';
+//             //set cond value
+//         }
+//         pthread_mutex_unlock(boomgate_protocol.lock);
+// }
 
 // Takes the time required (millisecons)
 // and multiplies it (in case we want to make it slower for testing)
-void sleeping_beauty(int seconds){
-    usleep(seconds * MULTIPLIER);
-}
+// void sleeping_beauty(int seconds){
+//     usleep(seconds * MULTIPLIER);
+// }
 
 int main()
 {

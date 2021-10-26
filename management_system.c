@@ -2,6 +2,7 @@
 #include <semaphore.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -10,10 +11,12 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <time.h>
+#include <regex.h>
 
 #include "shm.h"
 // #include "boomgate.h"
 #include "defines.h"
+#include "status_display.c"
 
 
 // Global variables
@@ -49,11 +52,52 @@ typedef struct car {
     time_t enter_time;
 } car_t;
 
+// Calculates the bill for a car when they trigger the exit LPR
 void bill_car(car_t* car){
+    // Open billing.txt in append mode
     FILE* fp = fopen(BILLING_FILE, "a");
-    fprintf(fp,"sssssss\n");
+
+    // Calculate the difference between car->enter_time 
+    // and exit_time
+    time_t exit_time = time(0) * 1000;
+    double total_time = difftime(exit_time, car->enter_time);
+
+    // Calculate total bill from time_spent in the car park
+    double bill = total_time * 0.05;
+    
+    // Write to billing.txt file
+    fprintf(fp,"%s $%.02f\n", car->lp, bill);
     fclose(fp);
-    return;
+}
+
+// Calculates the total revenue for the car park
+double calculate_total_revenue() {
+    FILE *fp;
+    char * line = NULL;
+    size_t len = 0;
+    ssize_t read;
+    double revenue = 0.0;
+    
+    if((fp = fopen(BILLING_FILE, "r")) != NULL) {
+        while ((read = getline(&line, &len, fp)) != -1) {
+            char money_str[len];
+            double money_dbl;
+            char *eptr;
+
+            // Get substring of each car's bill total
+            strncpy(money_str, line+8, len);
+
+            // Convert string to double
+            money_dbl = strtod(money_str, &eptr);
+            revenue += money_dbl; 
+        }  
+        fclose(fp);
+        return revenue;  
+    }
+    else {
+        printf("File does not exist.");
+        return 0;
+    }    
 }
 
 
@@ -220,29 +264,29 @@ bool search_plate(htab_t *h, u_char *input){
     
 // }
 
-bool init_threads(thread_list_t* t_list){
-    // Calculate number of boomgates
-    for (size_t i = 0; i < ENTRANCES; i++){
-        if (pthread_create(&t_list->boomgate_threads[i], NULL, (void*)manager_boomgate,
-        &shm.data->enterances[i].boom)){
-            return EXIT_FAILURE;
-        }
-    }
-    for (size_t i = 0; i < EXITS; i++){
-        if (pthread_create(&t_list->boomgate_threads[i + ENTRANCES], NULL, 
-        (void*)manager_boomgate, &shm.data->exits[i].boom)){
-            return EXIT_FAILURE;
-        }
-    }
+// bool init_threads(thread_list_t* t_list){
+//     // Calculate number of boomgates
+//     for (size_t i = 0; i < ENTRANCES; i++){
+//         if (pthread_create(&t_list->boomgate_threads[i], NULL, (void*)manager_boomgate,
+//         &shm.data->enterances[i].boom)){
+//             return EXIT_FAILURE;
+//         }
+//     }
+//     for (size_t i = 0; i < EXITS; i++){
+//         if (pthread_create(&t_list->boomgate_threads[i + ENTRANCES], NULL, 
+//         (void*)manager_boomgate, &shm.data->exits[i].boom)){
+//             return EXIT_FAILURE;
+//         }
+//     }
 
 
-    /*if (pthread_create(&t_list->boomgate_threads[0], NULL, (void*)manager_boomgate,
-    &shm.data->enterances[0].boom)){
-        return EXIT_FAILURE;
-    }*/
+//     /*if (pthread_create(&t_list->boomgate_threads[0], NULL, (void*)manager_boomgate,
+//     &shm.data->enterances[0].boom)){
+//         return EXIT_FAILURE;
+//     }*/
 
-    return EXIT_SUCCESS;
-}
+//     return EXIT_SUCCESS;
+// }
 
 // void exit_boomgates(thread_list_t* t_list){
 //     for (size_t i = 0; i < ENTRANCES; i++){
@@ -253,10 +297,10 @@ bool init_threads(thread_list_t* t_list){
 //     }
 // }
 
-void cleanup_threads(thread_list_t* t_list){
-    exit_condition = true;
-    exit_boomgates(t_list);
-}
+// void cleanup_threads(thread_list_t* t_list){
+//     exit_condition = true;
+//     exit_boomgates(t_list);
+// }
 
 ////////////////////////////////
 ////       Entering         ////
@@ -332,28 +376,28 @@ char entry_message( bool search_plate, bool cp_has_space){
 ////////////////////////////////
 
 //Tell when to raise boomgates
-void boomgate_func_raising(pc_boom_t boomgate_protocol){
-        pthread_mutex_lock(boomgate_protocol->lock);
-        if(boomgate_protocol->status == 'C'){
-            // change the status automatically no waiting
-            boomgate_protocol->status = 'R';
-        }
-        pthread_cond_signal(boomgate_protocol->cond);
-        pthread_mutex_unlock(boomgate_protocol->lock);
+// void boomgate_func_raising(pc_boom_t boomgate_protocol){
+//         pthread_mutex_lock(boomgate_protocol->lock);
+//         if(boomgate_protocol->status == 'C'){
+//             // change the status automatically no waiting
+//             boomgate_protocol->status = 'R';
+//         }
+//         pthread_cond_signal(boomgate_protocol->cond);
+//         pthread_mutex_unlock(boomgate_protocol->lock);
         
-    }    
-}
+//     }    
+// }
 //Tell when to lower boomgates
-void boomgate_func_lowering(pc_boom_t boomgate_protocol){
-    pthread_mutex_lock(boomgate_protocol->lock);
-        if(boomgate_protocol->status == 'O'){
-            // change the status automatically no waiting
-            boomgate_protocol->status = 'L';
+// void boomgate_func_lowering(pc_boom_t boomgate_protocol){
+//     pthread_mutex_lock(boomgate_protocol->lock);
+//         if(boomgate_protocol->status == 'O'){
+//             // change the status automatically no waiting
+//             boomgate_protocol->status = 'L';
             
-        }
-        pthread_cond_signal(boomgate_protocol->cond);
-        pthread_mutex_unlock(boomgate_protocol->lock);
-}
+//         }
+//         pthread_cond_signal(boomgate_protocol->cond);
+//         pthread_mutex_unlock(boomgate_protocol->lock);
+// }
 
 
 // Takes the time required (millisecons)
@@ -369,6 +413,14 @@ int main(){
     {
         printf("Memory access failed\n");
     }
+    // Create new billing text file
+    FILE* fp = fopen(BILLING_FILE, "w+");
+    fclose(fp);
+
+    double revenue = calculate_total_revenue();
+
+    // status_display(LEVELS, levels_fullness, ENTRANCES, EXITS, LEVEL_CAPACITY, revenue, &shm);
+
 
     // Setup for hash table and insert file contents
     htab_t hasht;
@@ -376,24 +428,22 @@ int main(){
     htab_init(&hasht, buckets);
 
     // setup all thrreads
-    thread_list_t threads;
-    if (init_threads(&threads)){
-        printf("Thread creation failed");
-    }
+    // thread_list_t threads;
+    // if (init_threads(&threads)){
+    //     printf("Thread creation failed");
+    // }
 
     //car_t temp = {"aaaaaa"};
 
-    FILE* fp = fopen(BILLING_FILE, "w+");
-    //fprintf(fp,"sssssss\n");
-    fclose(fp);
+    
 
     // Wait until program closes
-    printf("Press ENTER to close the manager\n");
+    printf("\nPress ENTER to close the manager\n");
     getchar();
     
 
     // Memory cleanup
-    cleanup_threads(&threads);
+    // cleanup_threads(&threads);
     htab_destroy(&hasht);
     munmap((void *)shm.data, sizeof(shm.data));
     close(shm.fd);

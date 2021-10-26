@@ -105,20 +105,20 @@ void print_exits(int num_exits, int col_width, p_exit_t* exit_info) {
     Boomgate(col_width, num_exits, &exit_info->boom);
     printf("\r\n");
 }
-void print_revenue() {
+void print_revenue(double revenue) {
     printf(" \n");
 
     printf(" ---------------- \n");
-    printf("| Revenue:  $%.2d|\n", 2000);
+    printf("| Revenue:  $%.2f|\n", revenue);
     printf(" ---------------- ");
 }
-void status_display(int num_levels, int levels_fullness[], int num_entrances, int num_exits, int level_capacity, shared_mem_t* shm){
+void status_display(int num_levels, int levels_fullness[], int num_entrances, int num_exits, int level_capacity, double revenue, shared_mem_t* shm){
     int screen_size = get_win_size(); 
     int col_width = screen_size/MAX;  
-    printf("\e[1;1H\e[2J");
+    // printf("\e[1;1H\e[2J");
     print_levels(num_levels, levels_fullness, level_capacity, col_width, shm->data->levels);
     print_entrances(num_entrances, col_width, shm->data->enterances);
     print_exits(num_exits, col_width, shm->data->exits);
 
-    print_revenue();
+    print_revenue(revenue);
 }

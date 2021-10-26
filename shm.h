@@ -6,13 +6,14 @@
 #include <fcntl.h>
 #include <pthread.h>
 
+
+
 //
 // Third level data structs
 //
 
 // Data struct for License Plate Recognition sensor
-typedef struct pc_lpr
-{
+typedef struct pc_lpr {
     pthread_mutex_t lock;
     pthread_cond_t cond;
     char l_plate[6];
@@ -20,18 +21,16 @@ typedef struct pc_lpr
 } pc_lpr_t;
 
 // Data struct for Boom Gate
-typedef struct pc_boom
-{
+typedef struct pc_boom {
     pthread_mutex_t lock;
     pthread_cond_t cond;
-    char status[2];
+    char status;
     int padding; //May be the wrong data type
 
 } pc_boom_t;
 
 // Data struct for Information Sign
-typedef struct pc_sign
-{
+typedef struct pc_sign {
     pthread_mutex_t lock;
     pthread_cond_t cond;
     char display;
@@ -43,8 +42,7 @@ typedef struct pc_sign
 //
 
 // Data struct for one level
-typedef struct p_enterance
-{
+typedef struct p_enterance {
     pc_lpr_t lpr;
     pc_boom_t boom;
     pc_sign_t sign;
@@ -74,22 +72,20 @@ typedef struct p_level
 //
 
 // Data used by shared memory
-typedef struct shared_data
-{
+typedef struct shared_data {
     p_enterance_t enterances[5];
     p_exit_t exits[5];
     p_level_t levels[5];
 
 } shared_data_t;
 
-typedef struct shared_mem
-{
+typedef struct shared_mem {
     /// The name of the shared memory object.
-    const char *name;
+    const char* name;
 
     /// The file descriptor used to manage the shared memory object.
     int fd;
 
-    /// Address of the shared data block.
+    /// Address of the shared data block. 
     shared_data_t *data;
 } shared_mem_t;

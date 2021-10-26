@@ -206,7 +206,6 @@ void boomgate_func_close(pc_boom_t boomgate_protocol){
             // change the status to "O" after 10 milli
             sleeping_beauty(10);
             boomgate_protocol->status = 'C';
-            //set cond value
         }
         pthread_mutex_unlock(boomgate_protocol->lock);
 }

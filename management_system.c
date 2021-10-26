@@ -331,16 +331,27 @@ char entry_message( bool search_plate, bool cp_has_space){
 ////       Boomgates        ////
 ////////////////////////////////
 
+/* boomgate_func_raising - if we get the car functions to work we can say 
+    if(LEVEL_CAPACITY* LEVELS == number_of_cars || unauthorized_car) thats if we choose this way 
+    also, do we need to signal that the car park is currently full and make some processes wait??
+    will find out more tomorrow lmao
+ */
+int number_of_cars; //THIS IS A TEMP VALUE DELETE WHEN WE HAVE REAL VALUE
 //Tell when to raise boomgates
-void boomgate_func_raising(pc_boom_t boomgate_protocol){
+void boomgate_func_raising(pc_boom_t boomgate_protocol){ 
+    if(LEVEL_CAPACITY* LEVELS == number_of_cars) 
         pthread_mutex_lock(boomgate_protocol->lock);
         if(boomgate_protocol->status == 'C'){
             // change the status automatically no waiting
             boomgate_protocol->status = 'R';
+            pthread_cond_signal(boomgate_protocol->cond);
         }
-        pthread_cond_signal(boomgate_protocol->cond);
-        pthread_mutex_unlock(boomgate_protocol->lock);
         
+        pthread_mutex_unlock(boomgate_protocol->lock);
+    }else{
+        boomgate_protcol->status = 'X'; 
+        //Maybe signal it to full?? 
+    } 
     }    
 }
 //Tell when to lower boomgates
@@ -349,11 +360,13 @@ void boomgate_func_lowering(pc_boom_t boomgate_protocol){
         if(boomgate_protocol->status == 'O'){
             // change the status automatically no waiting
             boomgate_protocol->status = 'L';
-            
+            pthread_cond_signal(boomgate_protocol->cond) //Signals the car to go through;
         }
-        pthread_cond_signal(boomgate_protocol->cond);
+       
         pthread_mutex_unlock(boomgate_protocol->lock);
 }
+
+
 
 
 // Takes the time required (millisecons)

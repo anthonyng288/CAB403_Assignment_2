@@ -339,7 +339,7 @@ char entry_message( bool search_plate, bool cp_has_space){
 int number_of_cars; //THIS IS A TEMP VALUE DELETE WHEN WE HAVE REAL VALUE
 //Tell when to raise boomgates
 void boomgate_func_raising(pc_boom_t boomgate_protocol){ 
-    if(LEVEL_CAPACITY* LEVELS == number_of_cars) 
+    // if(LEVEL_CAPACITY* LEVELS == number_of_cars){
         pthread_mutex_lock(boomgate_protocol->lock);
         if(boomgate_protocol->status == 'C'){
             // change the status automatically no waiting
@@ -348,10 +348,10 @@ void boomgate_func_raising(pc_boom_t boomgate_protocol){
         }
         
         pthread_mutex_unlock(boomgate_protocol->lock);
-    }else{
-        boomgate_protcol->status = 'X'; 
-        //Maybe signal it to full?? 
-    } 
+    // }else{
+    //     boomgate_protcol->status = 'X'; 
+    //     //Maybe signal it to full?? 
+    // } 
     }    
 }
 //Tell when to lower boomgates

@@ -197,7 +197,7 @@ void boomgate_func_open(pc_boom_t boomgate_protocol){
         pthread_mutex_unlock(boomgate_protocol->lock);
         
     }    
-}
+
 
 //Tell when to close boomgates
 void boomgate_func_close(pc_boom_t boomgate_protocol){

@@ -13,7 +13,7 @@
 // Data struct for License Plate Recognition sensor
 typedef struct pc_lpr
 {
-    s lock;
+    pthread_mutex_t lock;
     pthread_cond_t cond;
     char l_plate[6];
 
@@ -24,7 +24,7 @@ typedef struct pc_boom
 {
     pthread_mutex_t lock;
     pthread_cond_t cond;
-    char status;
+    char status[2];
     int padding; //May be the wrong data type
 
 } pc_boom_t;

@@ -23,6 +23,7 @@ shared_mem_t shm;
 bool exit_condition = false; // exit condition
 int levels_fullness[LEVELS];
 
+
 // Get shared memory segment
 bool get_shared_object( shared_mem_t* shm, const char* share_name ){
     
@@ -217,13 +218,13 @@ bool search_plate(htab_t *h, u_char *input){
 
 
 
-// Functions waits until a boomgate is signaled then opens or closes it
-void manager_boomgate(pc_boom_t* boom){
-    while (!exit_condition) {
-        sleep(1);
-    }
+// // Functions waits until a boomgate is signaled then opens or closes it
+// void manager_boomgate(pc_boom_t* boom){
+//     while (!exit_condition) {
+//         sleep(1);
+//     }
     
-}
+// }
 
 bool init_threads(thread_list_t* t_list){
     // Calculate number of boomgates
@@ -249,19 +250,25 @@ bool init_threads(thread_list_t* t_list){
     return EXIT_SUCCESS;
 }
 
-void exit_boomgates(thread_list_t* t_list){
-    for (size_t i = 0; i < ENTRANCES; i++){
-        pthread_join(t_list->boomgate_threads[i], NULL);
-    }
-    for (size_t i = 0; i < EXITS; i++){
-        pthread_join(t_list->boomgate_threads[i + EXITS], NULL);
-    }
-}
+// void exit_boomgates(thread_list_t* t_list){
+//     for (size_t i = 0; i < ENTRANCES; i++){
+//         pthread_join(t_list->boomgate_threads[i], NULL);
+//     }
+//     for (size_t i = 0; i < EXITS; i++){
+//         pthread_join(t_list->boomgate_threads[i + EXITS], NULL);
+//     }
+// }
 
 void cleanup_threads(thread_list_t* t_list){
     exit_condition = true;
     exit_boomgates(t_list);
 }
+
+////////////////////////////////
+////       Entering         ////
+////////////////////////////////
+
+
 //Ensures that there is room in the car park before
 //allowing new vehicles in (number of cars < number of levels * the number of cars per level).
 
@@ -325,6 +332,43 @@ char entry_message( bool search_plate, bool cp_has_space){
     }
 }
 
+
+////////////////////////////////
+////       Boomgates        ////
+////////////////////////////////
+
+//Tell when to raise boomgates
+void boomgate_func_raising(pc_boom_t boomgate_protocol){
+        pthread_mutex_lock(boomgate_protocol->lock);
+        if(boomgate_protocol->status == 'C'){
+            // change the status automatically no waiting
+            boomgate_protocol->status = 'R';
+        }
+        pthread_cond_signal(boomgate_protocol->cond);
+        pthread_mutex_unlock(boomgate_protocol->lock);
+        
+    }    
+}
+//Tell when to lower boomgates
+void boomgate_func_lowering(pc_boom_t boomgate_protocol){
+    pthread_mutex_lock(boomgate_protocol->lock);
+        if(boomgate_protocol->status == 'O'){
+            // change the status automatically no waiting
+            boomgate_protocol->status = 'L';
+            
+        }
+        pthread_cond_signal(boomgate_protocol->cond);
+        pthread_mutex_unlock(boomgate_protocol->lock);
+}
+
+
+// Takes the time required (millisecons)
+// and multiplies it (in case we want to make it slower for testing)
+void sleeping_beauty(int seconds){
+    usleep(seconds * MULTIPLIER);
+}
+
+
 int main(){
     // Access shared memory
     if (!get_shared_object(&shm, SHM_NAME))
@@ -376,5 +420,8 @@ int main(){
 
     return 0;
 }   
+
+
+
 
 

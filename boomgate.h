@@ -14,6 +14,7 @@
 
 // boomgate function for simulator
 // conditions:
+
 //  must be run before partner function in manager
 //  partner function is required to run properly
 //  boomgate must start shut

@@ -181,22 +181,40 @@ int random_license_plate(protected_rand* pr){
     return plate;
 }*/
 
-void rand_temp (shared_mem_t shm) {
-    srand(time(0));
-    int start_temp = (rand() % (32 - 11 + 1) + 11);
-    for (int i = 0; i < LEVELS; i++) {
-        if(shm.data->levels[i].temp == 0) {
-            // Determine a starting temperature for simulation
-            printf("You are in 0");
-            shm.data->levels[i].temp = start_temp;
-            printf("%d", shm.data->levels[i].temp);
-        } 
-        else {
-            printf("Previous temp for level %d: %d\n", i, shm.data->levels[i].temp);
-            shm.data->levels[i].temp = shm.data->levels[i].temp + (rand() % 3);
-            printf("New temp for level %d is: %d\n", i, shm.data->levels[i].temp);
+
+////////////////////////////////
+////       Boomgates        ////
+///////////////////////////////
+
+//Tell when to open boomgates
+void boomgate_func_open(pc_boom_t boomgate_protocol){
+        pthread_mutex_lock(boomgate_protocol->lock);
+        if(boomgate_protocol->status == 'R'){
+            // change the status to "O" after 10 milli
+            sleeping_beauty(10);
+            boomgate_protocol->status = 'O';
         }
-    }
+        pthread_mutex_unlock(boomgate_protocol->lock);
+        
+    }    
+}
+
+//Tell when to close boomgates
+void boomgate_func_close(pc_boom_t boomgate_protocol){
+    pthread_mutex_lock(boomgate_protocol->lock);
+        if(boomgate_protocol->status == 'L'){
+            // change the status to "O" after 10 milli
+            sleeping_beauty(10);
+            boomgate_protocol->status = 'C';
+            //set cond value
+        }
+        pthread_mutex_unlock(boomgate_protocol->lock);
+}
+
+// Takes the time required (millisecons)
+// and multiplies it (in case we want to make it slower for testing)
+void sleeping_beauty(int seconds){
+    usleep(seconds * MULTIPLIER);
 }
 
 int main()

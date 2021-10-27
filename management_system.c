@@ -333,26 +333,25 @@ char entry_message( bool search_plate, bool cp_has_space){
 
 //Tell when to raise boomgates
 void boomgate_func_raising(pc_boom_t boomgate_protocol){
-        pthread_mutex_lock(boomgate_protocol->lock);
-        if(boomgate_protocol->status == 'C'){
+        pthread_mutex_lock(boomgate_protocol.lock);
+        if(boomgate_protocol.status == 'C'){
             // change the status automatically no waiting
-            boomgate_protocol->status = 'R';
+            boomgate_protocol.status = 'R';
+            pthread_cond_signal(boomgate_protocol.cond);
         }
-        pthread_cond_signal(boomgate_protocol->cond);
-        pthread_mutex_unlock(boomgate_protocol->lock);
+        pthread_mutex_unlock(boomgate_protocol.lock);
         
     }    
 }
 //Tell when to lower boomgates
 void boomgate_func_lowering(pc_boom_t boomgate_protocol){
-    pthread_mutex_lock(boomgate_protocol->lock);
-        if(boomgate_protocol->status == 'O'){
+    pthread_mutex_lock(boomgate_protocol.lock);
+        if(boomgate_protocol.status == 'O'){
             // change the status automatically no waiting
-            boomgate_protocol->status = 'L';
-            
+            boomgate_protocol.status = 'L';
+            pthread_cond_signal(boomgate_protocol.cond);
         }
-        pthread_cond_signal(boomgate_protocol->cond);
-        pthread_mutex_unlock(boomgate_protocol->lock);
+        pthread_mutex_unlock(boomgate_protocol.lock);
 }
 
 
@@ -361,6 +360,10 @@ void boomgate_func_lowering(pc_boom_t boomgate_protocol){
 void sleeping_beauty(int seconds){
     usleep(seconds * MULTIPLIER);
 }
+
+////////////////////////////////
+////          Main          ////
+////////////////////////////////
 
 
 int main(){

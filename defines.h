@@ -6,6 +6,5 @@
 #define EXITS 5
 
 #define SHM_NAME "PARKING"
-#define SHM_SIZE 2920
 
 #define BILLING_FILE "Billing.txt"

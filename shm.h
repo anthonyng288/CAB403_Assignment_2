@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <fcntl.h>
 #include <pthread.h>
+#include "defines.h"
 
 
 
@@ -73,9 +74,9 @@ typedef struct p_level
 
 // Data used by shared memory
 typedef struct shared_data {
-    p_enterance_t enterances[5];
-    p_exit_t exits[5];
-    p_level_t levels[5];
+    p_enterance_t enterances[ENTRANCES];
+    p_exit_t exits[EXITS];
+    p_level_t levels[LEVELS];
 
 } shared_data_t;
 

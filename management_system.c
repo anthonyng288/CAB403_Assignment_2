@@ -331,6 +331,7 @@ char entry_message( bool search_plate, bool cp_has_space){
 ////       Boomgates        ////
 ////////////////////////////////
 
+
 //Tell when to raise boomgates
 void boomgate_func_raising(pc_boom_t boomgate_protocol){
         pthread_mutex_lock(boomgate_protocol.lock);

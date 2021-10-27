@@ -220,29 +220,29 @@ bool search_plate(htab_t *h, u_char *input){
     
 // }
 
-bool init_threads(thread_list_t* t_list){
-    // Calculate number of boomgates
-    for (size_t i = 0; i < ENTRANCES; i++){
-        if (pthread_create(&t_list->boomgate_threads[i], NULL, (void*)manager_boomgate,
-        &shm.data->enterances[i].boom)){
-            return EXIT_FAILURE;
-        }
-    }
-    for (size_t i = 0; i < EXITS; i++){
-        if (pthread_create(&t_list->boomgate_threads[i + ENTRANCES], NULL, 
-        (void*)manager_boomgate, &shm.data->exits[i].boom)){
-            return EXIT_FAILURE;
-        }
-    }
+// bool init_threads(thread_list_t* t_list){
+//     // Calculate number of boomgates
+//     for (size_t i = 0; i < ENTRANCES; i++){
+//         if (pthread_create(&t_list->boomgate_threads[i], NULL, (void*)manager_boomgate,
+//         &shm.data->enterances[i].boom)){
+//             return EXIT_FAILURE;
+//         }
+//     }
+//     for (size_t i = 0; i < EXITS; i++){
+//         if (pthread_create(&t_list->boomgate_threads[i + ENTRANCES], NULL, 
+//         (void*)manager_boomgate, &shm.data->exits[i].boom)){
+//             return EXIT_FAILURE;
+//         }
+//     }
 
 
-    /*if (pthread_create(&t_list->boomgate_threads[0], NULL, (void*)manager_boomgate,
-    &shm.data->enterances[0].boom)){
-        return EXIT_FAILURE;
-    }*/
+//     /*if (pthread_create(&t_list->boomgate_threads[0], NULL, (void*)manager_boomgate,
+//     &shm.data->enterances[0].boom)){
+//         return EXIT_FAILURE;
+//     }*/
 
-    return EXIT_SUCCESS;
-}
+//     return EXIT_SUCCESS;
+// }
 
 // void exit_boomgates(thread_list_t* t_list){
 //     for (size_t i = 0; i < ENTRANCES; i++){
@@ -253,10 +253,10 @@ bool init_threads(thread_list_t* t_list){
 //     }
 // }
 
-void cleanup_threads(thread_list_t* t_list){
-    exit_condition = true;
-    exit_boomgates(t_list);
-}
+// void cleanup_threads(thread_list_t* t_list){
+//     exit_condition = true;
+//     exit_boomgates(t_list);
+// }
 
 ////////////////////////////////
 ////       Entering         ////
@@ -334,25 +334,27 @@ char entry_message( bool search_plate, bool cp_has_space){
 
 //Tell when to raise boomgates
 void boomgate_func_raising(pc_boom_t boomgate_protocol){
-        pthread_mutex_lock(boomgate_protocol.lock);
+        pthread_mutex_lock(&boomgate_protocol.lock);
         if(boomgate_protocol.status == 'C'){
             // change the status automatically no waiting
             boomgate_protocol.status = 'R';
-            pthread_cond_signal(boomgate_protocol.cond);
+            pthread_cond_signal(&boomgate_protocol.cond);
         }
-        pthread_mutex_unlock(boomgate_protocol.lock);
+        pthread_mutex_unlock(&boomgate_protocol.lock);
+
         
-    }    
+      
 }
 //Tell when to lower boomgates
 void boomgate_func_lowering(pc_boom_t boomgate_protocol){
-    pthread_mutex_lock(boomgate_protocol.lock);
+    pthread_mutex_lock(&boomgate_protocol.lock);
         if(boomgate_protocol.status == 'O'){
             // change the status automatically no waiting
             boomgate_protocol.status = 'L';
-            pthread_cond_signal(boomgate_protocol.cond);
+            pthread_cond_signal(&boomgate_protocol.cond);
         }
-        pthread_mutex_unlock(boomgate_protocol.lock);
+        pthread_mutex_unlock(&boomgate_protocol.lock);
+
 }
 
 
@@ -379,11 +381,11 @@ int main(){
     size_t buckets = HASHTABLE_BUCKETS;
     htab_init(&hasht, buckets);
 
-    // setup all thrreads
-    thread_list_t threads;
-    if (init_threads(&threads)){
-        printf("Thread creation failed");
-    }
+    // // setup all thrreads
+    // thread_list_t threads;
+    // if (init_threads(&threads)){
+    //     printf("Thread creation failed");
+    // }
 
     //car_t temp = {"aaaaaa"};
 
@@ -397,7 +399,7 @@ int main(){
     
 
     // Memory cleanup
-    cleanup_threads(&threads);
+    //cleanup_threads(&threads);
     htab_destroy(&hasht);
     munmap((void *)shm.data, sizeof(shm.data));
     close(shm.fd);

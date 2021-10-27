@@ -308,9 +308,6 @@ bool init_threads(thread_list_t* t_list, thread_var_t* t_var, htab_t* htab){
         if (pthread_create(&t_list->lpr_threads[i], NULL, (void*)entrance_lpr,
         &t_var->lpr_entrance_vars[i]));
     }
-    
-    
-
 
     /*if (pthread_create(&t_list->boomgate_threads[0], NULL, (void*)manager_boomgate,
     &shm.data->entrances[0].boom)){
@@ -331,7 +328,18 @@ void exit_boomgates(thread_list_t* t_list){
 
 void cleanup_threads(thread_list_t* t_list){
     exit_condition = true;
-    exit_boomgates(t_list);
+    // Enterances
+    for (size_t i = 0; i < ENTRANCES; i++){
+        pthread_join(t_list->boomgate_threads[i], NULL);
+    }
+    for (size_t i = 0; i < EXITS; i++){
+        pthread_join(t_list->boomgate_threads[i + EXITS], NULL);
+    }
+    // LPRs
+    for (size_t i = 0; i < ENTRANCES; i++) {
+        pthread_join(t_list->lpr_threads[i], NULL);
+    }
+    
 }
 
 

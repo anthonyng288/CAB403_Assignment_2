@@ -26,6 +26,7 @@ typedef struct pc_boom {
     pthread_mutex_t lock;
     pthread_cond_t cond;
     char status;
+    int padding; //May be the wrong data type
 
 } pc_boom_t;
 
@@ -63,8 +64,7 @@ typedef struct p_level
     pc_lpr_t lpr;
     int16_t temp;
     u_int8_t alarm;
-    //char padding[5];
-
+    // char padding[5];
 
 } p_level_t;
 

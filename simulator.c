@@ -16,14 +16,19 @@
 
 
 // Global variables
+// shared_mem_t sh_mem; // shared memory
 
 int shm_fd;
 volatile void *shm;
 pthread_mutex_t alarm_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t alarm_condvar = PTHREAD_COND_INITIALIZER;
 
-
-
+// Takes the time required (millisecons)
+// and multiplies it (in case we want to make it slower for testing)
+void sleeping_beauty(int seconds){
+    
+    usleep(seconds * MULTIPLIER);
+}
 
 
 // Create a shared memory segment
@@ -229,74 +234,147 @@ bool init_all(shared_data_t* data){
     }
 }
 
-
-
-
 //Protect calls to rand() with a mutex as rand () accesses a global variable
 //containing the current random seed.)
 
+
 typedef struct protect_rand{
-    pthread_mutex_t mutex_pr;
+    pthread_mutex_t lock;
 
-} protected_rand;
+} protect_rand_t;
 
-// There were a few errors preventing compilation, commented out for now
-/*
-int random_parking_time(){
+////////////////////////////////
+////       Boomgates        ////
+///////////////////////////////
+
+int random_parking_time(protect_rand_t pr){
     //lock mutex
-    pthread_mutex_lock(&pr->mutex_pr);
-    int parking_time = rand() 10000+100;
-    pthread_mutex_unlock(&pr->mutex_pr);
+    pthread_mutex_lock(&pr.lock);
+    int parking_time = rand() % 10000+100;
+    pthread_mutex_unlock(&pr.lock);
     
     return parking_time;
-
 }
 
-int random_car_creation_time(){
+int random_car_creation_time(protect_rand_t pr){
     //lock mutex
-    pthread_mutex_lock(&pr->mutex_pr);
-    int creation_time = rand() 100+1;
-    pthread_mutex_unlock(&pr->mutex_pr);
+    pthread_mutex_lock(&pr.lock);
+    int creation_time = rand() % 100+1;
+    pthread_mutex_unlock(&pr.lock);
     
     return creation_time;
+}
+
+//if the car plate is random
+//License plates from the hash table are 3 numbers then 3
+//letters so we will asume that format
+char * unauthorised_plate(protect_rand_t pr){
+    
+    char *plate = malloc (6);
+    
+    
+     // create 3 numbers
+        for(int i = 0 ; i < 3 ; i++ ) {
+        pthread_mutex_lock(&pr.lock);
+        int num = rand() % 10;
+        pthread_mutex_unlock(&pr.lock);
+        
+        //printf("%c \n", (num + '0'));
+        
+        // convert it to a char
+        char num_c = (num + '0');
+        //strncat(plate, &num_c, 1);
+        plate[i] = num_c;
+        //printf("%s \n\n", plate);
+        
+    // create 3 letters
+    
+        for(int i = 3 ; i < 6 ; i++ ) {
+        pthread_mutex_lock(&pr.lock);
+        char letters = 'A' + (rand() % 26);
+        pthread_mutex_unlock(&pr.lock);
+        plate[i] = letters;
+        //printf("%s \n\n", plate);
+        
+        }
+    
+    }
+    //printf("%s \n\n", "uwu");
+    return plate;
+}
+
+
+// Random authorised car
+// Assume that there is no repeat cars
+char* authorised_plate(htab_t *h, protect_rand_t pr){
+   
+    // choose random bucket number
+    pthread_mutex_lock(&pr.lock);
+    int num = rand() % h->size;
+    pthread_mutex_unlock(&pr.lock);
+
+    // get plate from such bucket
+    item_t random_item = h->buckets[num];
+
+    char* plate =  malloc(6);
+    plate = random_item ->value;
 
 }
 
-int random_license_plate(protected_rand* pr){
+// Random license plate authorised or unauthorised
+char* random_license_plate(htab_t *h, protect_rand_t pr){
     //lock mutex
-    pthread_mutex_lock(&pr->mutex_pr);
+    pthread_mutex_lock(&pr.lock);
     //Randomise if the car will have a valid license plate from hash table or a random plate
     //Random plate could be one of the list, but it is unlikely
     int valid = rand() % 2;
     
+    pthread_mutex_unlock(&pr.lock);
 
-    char plate[];
+    char* plate = NULL;
     //char digits[10] = {"0123456789"};
     
-    //if the car plate is random
-    //License plates from the hash table are 3 numbers then 3
-    //letters so we will asuume that format
-    if valid == 0{
-        //random plate
-
-        for( i = 0 ; i < 3 ; i++ ) {
-        strncat(plate, rand() % 10, 1);
-        }
-
-        for( i = 0 ; i < 3 ; i++ ) {
-        strncat(plate,'A' + (rand() % 26, 1);
-        }
-
+    
+    if (valid == 0){
+        plate = unauthorised_plate(pr);
     }
-
     //if from the hash table
     else {
         //plate from hash table
-        plate = 0;
+        plate = authorised_plate(h, pr);
     }
-    pthread_mutex_unlock(&pr->mutex_pr);
     return plate;
-}*/
+}
+
+////////////////////////////////
+////       Boomgates        ////
+///////////////////////////////
+
+//Tell when to open boomgates
+void boomgate_func_open(pc_boom_t boomgate_protocol){
+        pthread_mutex_lock(&boomgate_protocol.lock);
+        if(boomgate_protocol.status == 'R'){
+            // change the status to "O" after 10 milli
+            sleeping_beauty(10);
+            boomgate_protocol.status = 'O';
+        }
+        pthread_mutex_unlock(&boomgate_protocol.lock);
+
+          
+}
+
+//Tell when to close boomgates
+void boomgate_func_close(pc_boom_t boomgate_protocol){
+    pthread_mutex_lock(&boomgate_protocol.lock);
+
+        if(boomgate_protocol.status == 'L'){
+            // change the status to "O" after 10 milli
+            sleeping_beauty(10);
+            boomgate_protocol.status = 'C';
+        }
+        pthread_mutex_unlock(&boomgate_protocol.lock);
+
+}
 
 // add a car the the que for an entrance and trigger LPR if needed
 // if cars already exist within the que, lpr is already triggered and the list will be cleared
@@ -322,6 +400,13 @@ int main()
     if (!init_all(sh_mem.data)) {
         printf("Initialization failed\n");
     }
+    // Testing random license generator
+    // protect_rand_t pr= PTHREAD_MUTEX_INITIALIZER;
+    // for (int i = 0; i < 10; i++){
+    //     char *ram;
+    //     ram = random_license_plate(pr);
+    //     printf("%s \n", ram);
+    // }
     
     // Testing
     printf("Press ENTER to end the simulation\n");

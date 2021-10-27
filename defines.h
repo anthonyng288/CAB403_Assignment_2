@@ -9,3 +9,6 @@
 #define SHM_NAME "PARKING"
 
 #define BILLING_FILE "Billing.txt"
+
+//to increase the sleeping
+#define MULTIPLIER 1

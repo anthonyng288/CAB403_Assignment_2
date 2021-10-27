@@ -7,6 +7,9 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+//This might not need to be here?
+//We might need to have this in the header file Rule 8
+
 int shm_fd;
 volatile void *shm;
 
@@ -14,7 +17,8 @@ int alarm_active = 0;
 pthread_mutex_t alarm_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t alarm_condvar = PTHREAD_COND_INITIALIZER;
 
-#define LEVELS 5
+
+#define LEVELS 5  
 #define ENTRANCES 5
 #define EXITS 5
 
@@ -43,7 +47,7 @@ struct tempnode *deletenodes(struct tempnode *templist, int after)
 		templist->next = deletenodes(templist->next, after - 1);
 	}
 	if (after <= 0) {
-		free(templist);
+		free(templist); //Rule 3 violation
 		return NULL;
 	}
 	return templist;
@@ -64,7 +68,7 @@ void tempmonitor(int level)
 		temp = *((int16_t *)(shm + addr));
 		
 		// Add temperature to beginning of linked list
-		newtemp = malloc(sizeof(struct tempnode));
+		newtemp = malloc(sizeof(struct tempnode)); // Rule 3 violation
 		newtemp->temperature = temp;
 		newtemp->next = templist;
 		templist = newtemp;
@@ -79,7 +83,7 @@ void tempmonitor(int level)
 		}
 		
 		if (count == MEDIAN_WINDOW) { // Temperatures are only counted once we have 5 samples
-			int *sorttemp = malloc(sizeof(int) * MEDIAN_WINDOW);
+			int *sorttemp = malloc(sizeof(int) * MEDIAN_WINDOW); //Rule 3 Violation
 			count = 0;
 			for (struct tempnode *t = templist; t != NULL; t = t->next) {
 				sorttemp[count++] = t->temperature;
@@ -88,7 +92,7 @@ void tempmonitor(int level)
 			mediantemp = sorttemp[(MEDIAN_WINDOW - 1) / 2];
 			
 			// Add median temp to linked list
-			newtemp = malloc(sizeof(struct tempnode));
+			newtemp = malloc(sizeof(struct tempnode)); //This shoudnt be here (rule 3)
 			newtemp->temperature = mediantemp;
 			newtemp->next = medianlist;
 			medianlist = newtemp;
@@ -144,12 +148,12 @@ void *openboomgate(void *arg)
 	
 }
 
-int main()
+int main() //This should be void Rule 7
 {
 	shm_fd = shm_open("PARKING", O_RDWR, 0);
-	shm = (volatile void *) mmap(0, 2920, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+	shm = (volatile void *) mmap(0, 2920, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0); //Rule 3 violation
 	
-	pthread_t *threads = malloc(sizeof(pthread_t) * LEVELS);
+	pthread_t *threads = malloc(sizeof(pthread_t) * LEVELS); //RUle 3 violation
 	
 	for (int i = 0; i < LEVELS; i++) {
 		pthread_create(threads + i, NULL, (void *(*)(void *)) tempmonitor, (void *)i);
@@ -173,7 +177,7 @@ int main()
 	}
 	
 	// Open up all boom gates
-	pthread_t *boomgatethreads = malloc(sizeof(pthread_t) * (ENTRANCES + EXITS));
+	pthread_t *boomgatethreads = malloc(sizeof(pthread_t) * (ENTRANCES + EXITS)); //This shouldnt be here Rule 3
 	for (int i = 0; i < ENTRANCES; i++) {
 		int addr = 288 * i + 96;
 		volatile struct boomgate *bg = shm + addr;

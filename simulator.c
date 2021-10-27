@@ -138,7 +138,9 @@ typedef struct protect_rand{
 
 } protect_rand_t;
 
-// There were a few errors preventing compilation, commented out for now
+////////////////////////////////
+////       Boomgates        ////
+///////////////////////////////
 
 int random_parking_time(protect_rand_t pr){
     //lock mutex
@@ -158,7 +160,10 @@ int random_car_creation_time(protect_rand_t pr){
     return creation_time;
 }
 
-char * unauthorised_license(protect_rand_t pr){
+//if the car plate is random
+//License plates from the hash table are 3 numbers then 3
+//letters so we will asume that format
+char * unauthorised_plate(protect_rand_t pr){
     
     char *plate = malloc (6);
     
@@ -192,30 +197,27 @@ char * unauthorised_license(protect_rand_t pr){
     //printf("%s \n\n", "uwu");
     return plate;
 }
-// bool search_bucket(item_t *item, u_char *input){
-//     for (size_t i = 0; i < 6; i++)
-//     {
-//         if (input[i] != item->value[i])
-//         {
-//             return search_bucket(item->next, input);
-//         }
-//     }
-//     // search successfull
-//     return true;
-// }
+
+
 // Random authorised car
-// They must not be in the car park
-
-// char* random_authorised_car(protect_rand_t pr){
+// Assume that there is no repeat cars
+char* authorised_plate(htab_t *h, protect_rand_t pr){
    
-//     pthread_mutex_lock(&pr.lock);
-//     int num = rand() % 10;
-//     pthread_mutex_unlock(&pr.lock);
+    // choose random bucket number
+    pthread_mutex_lock(&pr.lock);
+    int num = rand() % h->size;
+    pthread_mutex_unlock(&pr.lock);
 
+    // get plate from such bucket
+    item_t random_item = h->buckets[num];
 
-// }
+    char* plate =  malloc(6);
+    plate = random_item ->value;
 
-char* random_license_plate(protect_rand_t pr){
+}
+
+// Random license plate authorised or unauthorised
+char* random_license_plate(htab_t *h, protect_rand_t pr){
     //lock mutex
     pthread_mutex_lock(&pr.lock);
     //Randomise if the car will have a valid license plate from hash table or a random plate
@@ -224,19 +226,17 @@ char* random_license_plate(protect_rand_t pr){
     
     pthread_mutex_unlock(&pr.lock);
 
-    char* plate;
+    char* plate = NULL;
     //char digits[10] = {"0123456789"};
     
-    //if the car plate is random
-    //License plates from the hash table are 3 numbers then 3
-    //letters so we will asuume that format
+    
     if (valid == 0){
-        plate = unauthorised_license(pr);
+        plate = unauthorised_plate(pr);
     }
     //if from the hash table
     else {
         //plate from hash table
-        plate = "123456";
+        plate = authorised_plate(h, pr);
     }
     return plate;
 }

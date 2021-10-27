@@ -206,10 +206,10 @@ bool init_all(shared_data_t* data){
     pthread_condattr_setpshared(&cond_atr, PTHREAD_PROCESS_SHARED);
 
     for (size_t i = 0; i < ENTRANCES; i++) {
-        // enterances
-        failed += init_lpr(&data->enterances[i].lpr, &mutex_atr, &cond_atr);
-        failed += init_boomgate(&data->enterances[i].boom, &mutex_atr, &cond_atr);
-        failed += init_sign(&data->enterances[i].sign, &mutex_atr, &cond_atr);
+        // entrances
+        failed += init_lpr(&data->entrances[i].lpr, &mutex_atr, &cond_atr);
+        failed += init_boomgate(&data->entrances[i].boom, &mutex_atr, &cond_atr);
+        failed += init_sign(&data->entrances[i].sign, &mutex_atr, &cond_atr);
         car_entry_que[i] = NULL; // car que
     }
     for (u_int8_t i = 0; i < EXITS; i++){
@@ -300,14 +300,14 @@ int random_license_plate(protected_rand* pr){
 
 // add a car the the que for an entrance and trigger LPR if needed
 // if cars already exist within the que, lpr is already triggered and the list will be cleared
-void car_add(shared_data_t* data, car_t* car, int enterance) {
-    car_entry_que[enterance] = l_list_add(car_entry_que[enterance], car);
-    if (car_entry_que[enterance]->next == NULL) {
+void car_add(shared_data_t* data, car_t* car, int entry) {
+    car_entry_que[entry] = l_list_add(car_entry_que[entry], car);
+    if (car_entry_que[entry]->next == NULL) {
         usleep(2000);
-        for (u_int8_t i = 0; i < 6; i++) {
-            data->enterances[enterance].lpr.l_plate[i] = car->temp[i];
+        for (u_int8_t i = 5; i >= 0; i--) {
+            data->entrances[entry].lpr.l_plate[i] = car->temp[i];
         }
-        pthread_cond_broadcast(&data->enterances[enterance].lpr.cond);
+        pthread_cond_broadcast(&data->entrances[entry].lpr.cond);
     }
 }
 

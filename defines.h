@@ -4,6 +4,7 @@
 #define LEVELS 5
 #define ENTRANCES 5
 #define EXITS 5
+#define LEVEL_CAPACITY 20
 
 #define SHM_NAME "PARKING"
 

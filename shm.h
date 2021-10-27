@@ -74,7 +74,7 @@ typedef struct p_level
 
 // Data used by shared memory
 typedef struct shared_data {
-    p_enterance_t enterances[ENTRANCES];
+    p_enterance_t entrances[ENTRANCES];
     p_exit_t exits[EXITS];
     p_level_t levels[LEVELS];
 

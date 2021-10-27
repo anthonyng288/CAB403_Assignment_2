@@ -18,8 +18,15 @@
 
 
 // Global variables
-shared_mem_t shm;
+shared_mem_t shm; // shared memory
 bool exit_condition = false; // exit condition
+int parking_capacity;
+volatile int car_count = 0;
+
+
+typedef struct var_ent_lpr var_ent_lpr_t;
+typedef struct thread_var thread_var_t;
+
 
 // Get shared memory segment
 bool get_shared_object( shared_mem_t* shm, const char* share_name ){
@@ -36,6 +43,7 @@ bool get_shared_object( shared_mem_t* shm, const char* share_name ){
 
 typedef struct thread_list {
     pthread_t boomgate_threads[ENTRANCES + EXITS];
+    pthread_t lpr_threads[ENTRANCES]; // only entrance implemented
 } thread_list_t;
 
 
@@ -56,13 +64,14 @@ void bill_car(car_t* car){
 }
 
 
+
+
 ////////////////////////////////
 ////        Hashtable       ////
 ////////////////////////////////
 
 typedef struct item item_t;
-struct item
-{
+struct item {
     char value[6];
     item_t *next;
 };
@@ -231,21 +240,26 @@ bool search_plate(htab_t *h, char *input){
     }
 }
 
-void watch_lpr(pc_lpr_t* lpr, htab_t* h) {
+struct var_ent_lpr {
+    pc_lpr_t* lpr;
+    htab_t* h;
+};
+
+void entrance_lpr(var_ent_lpr_t* variables) {
+    pc_lpr_t* lpr = variables->lpr;
+    htab_t* h = variables->h;
     pthread_mutex_lock(&lpr->lock);
-    while (lpr->l_plate[0] == '\0') {
-        pthread_cond_wait(&lpr->cond, &lpr->lock);
-    }
-    for (int i = 0; i < 6; i++) {
-        printf("%c", lpr->l_plate[i]);
-    }
-    printf("\n");
-    if (search_plate(h, lpr->l_plate)){
-        printf("PLATE FOUND\n");
-    } else {
-        
-    }
+    while (!exit_condition) {
     
+        while (lpr->l_plate[0] == '\0') {
+            pthread_cond_wait(&lpr->cond, &lpr->lock);
+        }
+        if (search_plate(h, lpr->l_plate)){
+            // plate found, open the boomgate
+        } else {
+            // plate not found, put X on sign and signal car
+        }
+    }
 }
 
 
@@ -258,11 +272,26 @@ void manager_boomgate(pc_boom_t* boom){
     
 }
 
-bool init_threads(thread_list_t* t_list){
-    // Calculate number of boomgates
+////////////////////////////////
+////        Threads         ////
+////////////////////////////////
+
+
+
+
+
+
+struct thread_var {
+    var_ent_lpr_t lpr_entrance_vars[ENTRANCES];
+};
+
+
+
+bool init_threads(thread_list_t* t_list, thread_var_t* t_var, htab_t* htab){
+    // Setup boomgates
     for (size_t i = 0; i < ENTRANCES; i++){
         if (pthread_create(&t_list->boomgate_threads[i], NULL, (void*)manager_boomgate,
-        &shm.data->enterances[i].boom)){
+        &shm.data->entrances[i].boom)){
             return EXIT_FAILURE;
         }
     }
@@ -272,10 +301,19 @@ bool init_threads(thread_list_t* t_list){
             return EXIT_FAILURE;
         }
     }
+    // Setup entrance LPRs
+    for (size_t i = 0; i < ENTRANCES; i++) {
+        t_var->lpr_entrance_vars[i].h = htab;
+        t_var->lpr_entrance_vars[i].lpr = &shm.data->entrances[i].lpr;
+        if (pthread_create(&t_list->lpr_threads[i], NULL, (void*)entrance_lpr,
+        &t_var->lpr_entrance_vars[i]));
+    }
+    
+    
 
 
     /*if (pthread_create(&t_list->boomgate_threads[0], NULL, (void*)manager_boomgate,
-    &shm.data->enterances[0].boom)){
+    &shm.data->entrances[0].boom)){
         return EXIT_FAILURE;
     }*/
 
@@ -298,15 +336,14 @@ void cleanup_threads(thread_list_t* t_list){
 
 
 
-
-
-
 int main(){
     // Access shared memory
     if (!get_shared_object(&shm, SHM_NAME))
     {
         printf("Memory access failed\n");
     }
+
+    parking_capacity = LEVEL_CAPACITY * LEVELS;
 
     // Setup for hash table and insert file contents
     htab_t hasht;
@@ -317,9 +354,10 @@ int main(){
     
     
 
-    // setup all thrreads
+    // setup all threads
     thread_list_t threads;
-    if (init_threads(&threads)){
+    thread_var_t thread_vars;
+    if (init_threads(&threads, &thread_vars, &hasht)){
         printf("Thread creation failed");
     }
 
@@ -329,7 +367,7 @@ int main(){
     //fprintf(fp,"sssssss\n");
     fclose(fp);
 
-    //watch_lpr(&shm.data->enterances[0].lpr, &hasht);
+    //watch_lpr(&shm.data->entrances[0].lpr, &hasht);
 
     // Wait until program closes
     printf("Press ENTER to close the manager\n");

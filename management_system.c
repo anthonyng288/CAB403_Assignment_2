@@ -24,19 +24,19 @@ int parking_capacity;
 volatile int car_count = 0;
 
 
-typedef struct var_ent_lpr var_ent_lpr_t;
+typedef struct var_entrance_manager var_entrance_manager_t;
 typedef struct thread_var thread_var_t;
 
 
 // Get shared memory segment
 bool get_shared_object( shared_mem_t* shm, const char* share_name ){
     
-    if ((shm->fd = shm_open(share_name, O_RDWR, 0)) < 0) {
+    if ((shm->fd = shm_open(share_name, O_RDWR, 0666)) < 0) {
         shm->data = NULL;
         return false;
-    } else {
-        shm->data =  mmap(NULL, sizeof(shared_data_t), PROT_READ | PROT_WRITE,
-        MAP_SHARED, shm->fd, 0);
+    } else if ((shm->data =  mmap(NULL, 2920, PROT_READ | PROT_WRITE,
+        MAP_SHARED, shm->fd, 0)) < 0) {
+        return false;
     }
     return true;
 }
@@ -240,25 +240,20 @@ bool search_plate(htab_t *h, char *input){
     }
 }
 
-struct var_ent_lpr {
-    pc_lpr_t* lpr;
+struct var_entrance_manager {
+    p_enterance_t* ent;
     htab_t* h;
 };
 
-void entrance_lpr(var_ent_lpr_t* variables) {
-    pc_lpr_t* lpr = variables->lpr;
+void entrance_lpr(var_entrance_manager_t* variables) {
+    p_enterance_t* ent = variables->ent;
     htab_t* h = variables->h;
-    pthread_mutex_lock(&lpr->lock);
-    while (!exit_condition) {
-    
-        while (lpr->l_plate[0] == '\0') {
-            pthread_cond_wait(&lpr->cond, &lpr->lock);
-        }
-        if (search_plate(h, lpr->l_plate)){
-            // plate found, open the boomgate
-        } else {
-            // plate not found, put X on sign and signal car
-        }
+    //pthread_cond_wait(&ent->lpr.cond, &ent->lpr.lock);
+    printf("%c\n", ent->sign.display);
+    if (search_plate(h, (char*)&ent->sign.display)) {
+        printf("ACCEPT\n");
+    } else {
+        printf("DECLINE");
     }
 }
 
@@ -282,7 +277,7 @@ void manager_boomgate(pc_boom_t* boom){
 
 
 struct thread_var {
-    var_ent_lpr_t lpr_entrance_vars[ENTRANCES];
+    var_entrance_manager_t lpr_entrance_vars[ENTRANCES];
 };
 
 
@@ -302,14 +297,14 @@ bool init_threads(thread_list_t* t_list, thread_var_t* t_var, htab_t* htab){
         }
     }
     // Setup entrance LPRs
-    for (size_t i = 0; i < ENTRANCES; i++) {
+    /*for (size_t i = 0; i < ENTRANCES; i++) {
         t_var->lpr_entrance_vars[i].h = htab;
-        t_var->lpr_entrance_vars[i].lpr = &shm.data->entrances[i].lpr;
+        t_var->lpr_entrance_vars[i].ent = &shm.data->entrances[i];
         if (pthread_create(&t_list->lpr_threads[i], NULL, (void*)entrance_lpr,
         &t_var->lpr_entrance_vars[i]));
     }
 
-    /*if (pthread_create(&t_list->boomgate_threads[0], NULL, (void*)manager_boomgate,
+    if (pthread_create(&t_list->boomgate_threads[0], NULL, (void*)manager_boomgate,
     &shm.data->entrances[0].boom)){
         return EXIT_FAILURE;
     }*/
@@ -336,9 +331,10 @@ void cleanup_threads(thread_list_t* t_list){
         pthread_join(t_list->boomgate_threads[i + EXITS], NULL);
     }
     // LPRs
-    for (size_t i = 0; i < ENTRANCES; i++) {
+    /*for (size_t i = 0; i < ENTRANCES; i++) {
+        pthread_cond_broadcast(&shm.data->entrances[i].lpr.cond);
         pthread_join(t_list->lpr_threads[i], NULL);
-    }
+    }*/
     
 }
 
@@ -350,7 +346,8 @@ int main(){
     {
         printf("Memory access failed\n");
     }
-
+    printf("%d\n", shm.data->temp);
+    /*
     parking_capacity = LEVEL_CAPACITY * LEVELS;
 
     // Setup for hash table and insert file contents
@@ -367,24 +364,24 @@ int main(){
     thread_var_t thread_vars;
     if (init_threads(&threads, &thread_vars, &hasht)){
         printf("Thread creation failed");
-    }
+    }*/
 
     //car_t temp = {"aaaaaa"};
 
-    FILE* fp = fopen(BILLING_FILE, "w+");
+    ////FILE* fp = fopen(BILLING_FILE, "w+");
     //fprintf(fp,"sssssss\n");
-    fclose(fp);
+    ////fclose(fp);
 
     //watch_lpr(&shm.data->entrances[0].lpr, &hasht);
 
     // Wait until program closes
-    printf("Press ENTER to close the manager\n");
-    getchar();
-    
+    ////printf("Press ENTER to close the manager\n");
+    ////getchar();
+ 
 
     // Memory cleanup
-    cleanup_threads(&threads);
-    htab_destroy(&hasht);
+    ////cleanup_threads(&threads);
+    ////htab_destroy(&hasht);
     munmap((void *)shm.data, sizeof(shm.data));
     close(shm.fd);
 

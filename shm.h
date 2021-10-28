@@ -34,7 +34,7 @@ typedef struct pc_boom {
 typedef struct pc_sign {
     pthread_mutex_t lock;
     pthread_cond_t cond;
-    char display;
+    volatile char display;
 
 } pc_sign_t;
 
@@ -74,6 +74,7 @@ typedef struct p_level
 
 // Data used by shared memory
 typedef struct shared_data {
+    int temp;
     p_enterance_t entrances[ENTRANCES];
     p_exit_t exits[EXITS];
     p_level_t levels[LEVELS];

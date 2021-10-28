@@ -16,6 +16,8 @@
 
 
 // Global variables
+
+int shm_fd;
 // shared_mem_t sh_mem; // shared memory
 
 int shm_fd;
@@ -41,35 +43,29 @@ bool create_shared_object( shared_mem_t* shm, const char* share_name ) {
     }
     shm->name = share_name;
 
-    if ((shm->fd =shm_open(shm->name, O_CREAT | O_RDWR, 0666)) < 0)
+    if ((shm->fd =shm_open(share_name, O_CREAT | O_RDWR, 0666)) < 0)
     {
         shm->data = NULL;
         return false;
     }
 
-    if (ftruncate(shm->fd, sizeof(shared_data_t)) != 0){
+    if (ftruncate(shm->fd, 2920) < 0){
         shm->data = NULL;
         return false;
     }
 
-    if ((shm->data = mmap(0, sizeof(shared_data_t), PROT_WRITE, MAP_SHARED, shm->fd, 0)) == MAP_FAILED){
-        return false;
-    }
+    if ((shm->data = mmap(0, 2920, PROT_READ |PROT_WRITE, MAP_SHARED, shm->fd, 0)) == MAP_FAILED){
+            return false;
+        }
     return true;
 }
 
 // Linked list for cars queing to get in
-typedef struct car {
-    // car struct
-    char temp[6];
-} car_t;
 
 typedef struct node node_t;
-
-// a node in a linked list of people
 struct node
 {
-    car_t *car;
+    char licence[6];
     node_t *next;
 };
 
@@ -77,7 +73,7 @@ struct node
 node_t* car_entry_que[ENTRANCES];
 
 // add a node to the end of the list
-node_t* l_list_add(node_t* head, car_t* car){
+node_t* l_list_add(node_t* head, char car[6]){
     node_t* new_node = (node_t*)malloc(sizeof(node_t));
     if ((new_node == NULL)) {
         printf("ERROR: CANNOT ADD TO LINKED LIST\n");
@@ -85,7 +81,10 @@ node_t* l_list_add(node_t* head, car_t* car){
     }
 
     new_node->next = NULL;
-    new_node->car = car;
+    for (int i = 0; i < 6; i++) {
+        new_node->licence[i] = car[i];
+    }
+    
 
     if (head == NULL) {
         return new_node;
@@ -127,15 +126,6 @@ node_t* l_list_clear(node_t* head) {
     return NULL;
 }
 
-// get the first car in the que
-car_t* l_list_get(node_t* head){
-    if (head == NULL) {
-        return NULL;
-    } else {
-        return head->car;
-    }
-}
-
 void print_lp(char input[6]) {
     for (u_int8_t i = 0; i < 6; i++) {
         printf(" %c", input[i]);
@@ -151,11 +141,11 @@ void l_list_print(node_t* head){
     node_t* temp;
     temp = head;
     printf("LIST:");
-    print_lp(temp->car->temp);
+    print_lp(temp->licence);
     while (temp->next != NULL) {
         temp = temp->next;
         printf(" ->");
-        print_lp(temp->car->temp);
+        print_lp(temp->licence);
     }
     printf("\n");     
 }
@@ -191,6 +181,7 @@ int init_boomgate(pc_boom_t *boomgate,pthread_mutexattr_t* m_atr, pthread_condat
 }
 
 int init_sign(pc_sign_t *sign, pthread_mutexattr_t* m_atr, pthread_condattr_t* c_atr){
+    sign->display = '\0';
     if (pthread_mutex_init(&sign->lock, m_atr) != 0){
         return 1;
     } else if (pthread_cond_init(&sign->cond, c_atr) != 0){
@@ -306,7 +297,7 @@ char * unauthorised_plate(protect_rand_t pr){
 
 // Random authorised car
 // Assume that there is no repeat cars
-char* authorised_plate(htab_t *h, protect_rand_t pr){
+/*char* authorised_plate(htab_t *h, protect_rand_t pr){
    
     // choose random bucket number
     pthread_mutex_lock(&pr.lock);
@@ -344,7 +335,7 @@ char* random_license_plate(htab_t *h, protect_rand_t pr){
         plate = authorised_plate(h, pr);
     }
     return plate;
-}
+}*/
 
 ////////////////////////////////
 ////       Boomgates        ////
@@ -378,15 +369,40 @@ void boomgate_func_close(pc_boom_t boomgate_protocol){
 
 // add a car the the que for an entrance and trigger LPR if needed
 // if cars already exist within the que, lpr is already triggered and the list will be cleared
-void car_add(shared_data_t* data, car_t* car, int entry) {
-    car_entry_que[entry] = l_list_add(car_entry_que[entry], car);
-    if (car_entry_que[entry]->next == NULL) {
+void car_add(shared_data_t* data, char licence[6], int entry) {
+    pthread_cond_broadcast(&data->entrances[entry].lpr.cond);
+}
+
+typedef struct car_enty_struct car_entry_struct_t;
+struct car_enty_struct {
+    shared_data_t* data;
+    int entry;
+};
+
+
+// ensures all cars enter the carpark WIP
+void car_entry(car_entry_struct_t* input) {
+    shared_data_t* data = input->data;
+    int entry = input->entry;
+    pthread_mutex_lock(&data->entrances[entry].sign.lock);
+    while (data->entrances[entry].sign.display == '\0') {
+        pthread_cond_wait(&data->entrances[entry].sign.cond, &data->entrances[entry].sign.lock);
+    }
+    if (data->entrances[entry].sign.display != 'X') {
+        // create an instance of the car that has been admitted
+    }
+    l_list_remove(car_entry_que[entry]); // remove car from linked list
+    printf("CAR STATUS %c\n", data->entrances[entry].sign.display);
+    data->entrances[entry].sign.display = '\0'; // reset display
+    if (car_entry_que[entry] != NULL) {
         usleep(2000);
         for (u_int8_t i = 5; i >= 0; i--) {
-            data->entrances[entry].lpr.l_plate[i] = car->temp[i];
+            data->entrances[entry].lpr.l_plate[i] = car_entry_que[entry]->licence[i];
         }
         pthread_cond_broadcast(&data->entrances[entry].lpr.cond);
     }
+    
+    
 }
 
 int main()
@@ -407,14 +423,15 @@ int main()
     //     ram = random_license_plate(pr);
     //     printf("%s \n", ram);
     // }
-    
-    // Testing
-    printf("Press ENTER to end the simulation\n");
+
+
+
+
+    sh_mem.data->temp = 66;
+    printf("%d\n", sh_mem.data->temp);
+
+
     getchar();
-
-
-
     
-
-    return 0;
+    return EXIT_SUCCESS;
 }

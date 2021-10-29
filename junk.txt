@@ -1,0 +1,11 @@
+car_t* car3 = malloc(sizeof(*car3));
+car3->enter_time = 1635231591000;
+car3->lp="888888";
+bill_car(car3);
+free(car3);
+
+car_t* car4 = malloc(sizeof(*car4));
+car4->enter_time = 1635231591000;
+car4->lp="545433";
+bill_car(car4);
+free(car4);

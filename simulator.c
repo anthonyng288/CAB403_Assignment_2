@@ -427,8 +427,8 @@ int main()
 
 
 
-    sh_mem.data->temp = 66;
-    printf("%d\n", sh_mem.data->temp);
+    // sh_mem.data->temp = 66;
+    // printf("%d\n", sh_mem.data->temp);
 
 
     getchar();

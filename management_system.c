@@ -15,6 +15,7 @@
 #include "shm.h"
 #include "defines.h"
 #include "status_display.c"
+#include "rand_temp.c"
 
 
 
@@ -26,6 +27,7 @@ bool exit_condition = false; // exit condition
 int parking_capacity;
 volatile int car_count = 0;
 int levels_fullness[LEVELS];
+double revenue;
 
 
 typedef struct var_entrance_manager var_entrance_manager_t;
@@ -48,6 +50,8 @@ bool get_shared_object( shared_mem_t* shm, const char* share_name ){
 typedef struct thread_list {
     pthread_t boomgate_threads[ENTRANCES + EXITS];
     pthread_t lpr_threads[ENTRANCES]; // only entrance implemented
+    pthread_t status_display;
+    pthread_t rand_temps;
 } thread_list_t;
 
 
@@ -76,12 +80,12 @@ void bill_car(car_t* car){
     fclose(fp);
 }
 // Calculates the total revenue for the car park
-double calculate_total_revenue() {
+void calculate_total_revenue() {
     FILE *fp;
     char * line = NULL;
     size_t len = 0;
     ssize_t read;
-    double revenue = 0.0;
+    // double revenue = 0.0;
     
     if((fp = fopen(BILLING_FILE, "r")) != NULL) {
         while ((read = getline(&line, &len, fp)) != -1) {
@@ -95,11 +99,9 @@ double calculate_total_revenue() {
             revenue += money_dbl; 
         }  
         fclose(fp);
-        return revenue;  
     }
     else {
         printf("File does not exist.");
-        return 0;
     }    
 }
 
@@ -344,7 +346,7 @@ void entrance_lpr(var_entrance_manager_t* variables) {
     htab_t* h = variables->h;
     //pthread_cond_wait(&ent->lpr.cond, &ent->lpr.lock);
     printf("%c\n", ent->sign.display);
-    if (search_plate(h, (char*)&ent->sign.display)) {
+    if (search_plate(h, (char*)&ent->lpr.l_plate)) {
         printf("ACCEPT\n");
     } else {
         printf("DECLINE");
@@ -357,6 +359,23 @@ void manager_boomgate(pc_boom_t* boom){
         sleep(1);
     }
     
+}
+
+// Function updates the status_screen every 1sec
+void status_screen(shared_mem_t* shm){
+    while (!exit_condition) {
+        status_display(levels_fullness, revenue, shm);
+        sleep(1);
+    }
+}
+
+// Function updates the temperature every 1-5secs
+void rand_temp_thread(shared_mem_t* shm){
+    while (!exit_condition) {
+        rand_temp(shm);
+        int secs = rand() % 6;
+        sleep(secs);
+    }
 }
 
 ////////////////////////////////
@@ -398,8 +417,6 @@ struct thread_var {
     var_entrance_manager_t lpr_entrance_vars[ENTRANCES];
 };
 
-
-
 bool init_threads(thread_list_t* t_list, thread_var_t* t_var, htab_t* htab){
     // Setup boomgates
     for (size_t i = 0; i < ENTRANCES; i++){
@@ -426,6 +443,14 @@ bool init_threads(thread_list_t* t_list, thread_var_t* t_var, htab_t* htab){
     &shm.data->entrances[0].boom)){
         return EXIT_FAILURE;
     }*/
+    if(pthread_create(&t_list->status_display, NULL, 
+    (void*)status_screen, &shm)){
+        return EXIT_FAILURE;
+    }
+    if(pthread_create(&t_list->rand_temps, NULL, 
+    (void*)rand_temp_thread, &shm)){
+        return EXIT_FAILURE;
+    }
 
     return EXIT_SUCCESS;
 }
@@ -464,9 +489,6 @@ int main(){
     {
         printf("Memory access failed\n");
     }
-    // printf("%d\n", shm.data->temp);
-    
-    parking_capacity = LEVEL_CAPACITY * LEVELS;
 
     // Setup for hash table and insert file contents
     htab_t hasht;
@@ -474,20 +496,16 @@ int main(){
     if (!htab_init(&hasht, buckets)) {
         printf("Hashtable creation failed");
     }
-    
-    status_display(levels_fullness, &shm);
-    /*
+    parking_capacity = LEVEL_CAPACITY * LEVELS;
+
     // setup all threads
     thread_list_t threads;
     thread_var_t thread_vars;
     if (init_threads(&threads, &thread_vars, &hasht)){
         printf("Thread creation failed");
-    }*/
-
-    //car_t temp = {"aaaaaa"};
+    }
 
     FILE* fp = fopen(BILLING_FILE, "w+");
-    //fprintf(fp,"sssssss\n");
     fclose(fp);
 
     //watch_lpr(&shm.data->entrances[0].lpr, &hasht);
@@ -496,9 +514,8 @@ int main(){
     printf("Press ENTER to close the manager\n");
     getchar();
  
-
     // Memory cleanup
-    // cleanup_threads(&threads);
+    cleanup_threads(&threads);
     htab_destroy(&hasht);
     munmap((void *)shm.data, sizeof(shm.data));
     close(shm.fd);

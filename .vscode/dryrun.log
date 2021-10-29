@@ -1,8 +1,0 @@
-make --dry-run --always-make --keep-going --print-directory
-make: Entering directory '/home/cab403/repos/CAB403_Assignment_2'
-gcc -lrt -lpthread -Werror -Wall -g   -c -o simulator.o simulator.c
-gcc -lrt -lpthread  simulator.o   -o simulator
-gcc -lrt -lpthread -Werror -Wall -g   -c -o management_system.o management_system.c
-gcc -lrt -lpthread  management_system.o   -o management_system
-make: Leaving directory '/home/cab403/repos/CAB403_Assignment_2'
- 

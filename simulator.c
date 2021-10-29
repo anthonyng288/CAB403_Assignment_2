@@ -235,7 +235,7 @@ typedef struct protect_rand{
 } protect_rand_t;
 
 ////////////////////////////////
-////       Boomgates        ////
+////       Random           ////
 ///////////////////////////////
 
 int random_parking_time(protect_rand_t pr){
@@ -423,7 +423,7 @@ int main()
     //     ram = random_license_plate(pr);
     //     printf("%s \n", ram);
     // }
-
+    
 
 
 

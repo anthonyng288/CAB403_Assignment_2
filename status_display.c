@@ -67,7 +67,7 @@ void LPR (char *heading, int col_width, shared_mem_t* shm) {
     printf("\n");
     if(strcmp(heading, "Entrance") == 0) {
         for(int i=0; i<ENTRANCES; i++) {
-            printf("LPR:        %-*s", col_width-13, shm->data->enterances[i].lpr.l_plate);
+            printf("LPR:        %-*s", col_width-13, shm->data->entrances[i].lpr.l_plate);
         }
     }
     else if(strcmp(heading, "Level") == 0) {
@@ -85,7 +85,7 @@ void Boomgate (char *heading, int col_width, shared_mem_t* shm) {
     printf("\n");
     if(strcmp(heading, "Entrance") == 0) {
         for(int i=0; i<ENTRANCES; i++) {
-            printf("Boom gate:       %-*s", col_width-18, &shm->data->enterances[i].boom.status);
+            printf("Boom gate:       %-*s", col_width-18, &shm->data->entrances[i].boom.status);
         }
     }
     else if(strcmp(heading, "Exit") == 0) {
@@ -97,7 +97,7 @@ void Boomgate (char *heading, int col_width, shared_mem_t* shm) {
 void Screen (int col_width, shared_mem_t* shm) {
     printf("\n");
     for(int i=0; i<ENTRANCES; i++) {
-        printf("Screen:          %-*s", col_width-18, &shm->data->enterances[i].sign.display);
+        printf("Screen:          %-*s", col_width-18, &shm->data->entrances[i].sign.display);
     }
 }
 void print_levels(int levels_fullness[], int col_width, shared_mem_t* shm) {

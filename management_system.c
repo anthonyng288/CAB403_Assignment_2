@@ -14,6 +14,7 @@
 
 #include "shm.h"
 #include "defines.h"
+#include "status_display.c"
 
 
 
@@ -24,6 +25,7 @@ shared_mem_t shm; // shared memory
 bool exit_condition = false; // exit condition
 int parking_capacity;
 volatile int car_count = 0;
+int levels_fullness[LEVELS];
 
 
 typedef struct var_entrance_manager var_entrance_manager_t;
@@ -276,6 +278,61 @@ bool search_plate(htab_t *h, char *input){
         return search_bucket(head, input);
     }
 }
+////////////////////////////////
+////       Entering         ////
+////////////////////////////////
+//Ensures that there is room in the car park before
+//allowing new vehicles in (number of cars < number of levels * the number of cars per level).
+bool cp_has_space (int num_cars){
+    if (num_cars < (LEVELS * LEVEL_CAPACITY)){
+        return true;
+    }
+    else{
+        return false;
+    }
+}
+//Chooses a random available level
+char available_level(){
+    
+    //show a character between ‘1’ and ‘5’ 
+    //floor the driver should park on
+    for (int i = 0; i < LEVELS; i++){
+        if (levels_fullness[i] < LEVEL_CAPACITY){
+            levels_fullness[i] += 1;
+            char c = (i + 1) +'0';
+            return c;           
+        }
+    }
+    // If the driver is unable to access the car park due to it being full, the sign will show the
+    //character ‘F
+    return 'F';
+}
+//Determine what message to input in the entry sign for the car
+// conditions:
+// input: if the plate is or not allowed in
+// input: if the carpark has space or not
+char entry_message( bool search_plate, bool cp_has_space){
+    
+   //
+    if(cp_has_space){
+        if (search_plate){
+            //show a character between ‘1’ and ‘5’ 
+            //floor the driver should park on
+            return available_level();
+        }
+        else{
+            //If the driver is unable to access the car park due to not being in the access file, the
+            //sign will show the character ‘X’
+            ;
+            return 'X';
+        }
+    }
+    else{
+        // If the driver is unable to access the car park due to it being full, the sign will show the
+        //character ‘F
+        return 'F';
+    }
+}
 
 struct var_entrance_manager {
     p_enterance_t* ent;
@@ -294,8 +351,6 @@ void entrance_lpr(var_entrance_manager_t* variables) {
     }
 }
 
-
-
 // Functions waits until a boomgate is signaled then opens or closes it
 void manager_boomgate(pc_boom_t* boom){
     while (!exit_condition) {
@@ -305,13 +360,39 @@ void manager_boomgate(pc_boom_t* boom){
 }
 
 ////////////////////////////////
+////       Boomgates        ////
+////////////////////////////////
+//Tell when to raise boomgates
+void boomgate_func_raising(pc_boom_t boomgate_protocol){
+        pthread_mutex_lock(&boomgate_protocol.lock);
+        if(boomgate_protocol.status == 'C'){
+            // change the status automatically no waiting
+            boomgate_protocol.status = 'R';
+            pthread_cond_signal(&boomgate_protocol.cond);
+        }
+        pthread_mutex_unlock(&boomgate_protocol.lock);
+        
+      
+}
+//Tell when to lower boomgates
+void boomgate_func_lowering(pc_boom_t boomgate_protocol){
+    pthread_mutex_lock(&boomgate_protocol.lock);
+        if(boomgate_protocol.status == 'O'){
+            // change the status automatically no waiting
+            boomgate_protocol.status = 'L';
+            pthread_cond_signal(&boomgate_protocol.cond);
+        }
+        pthread_mutex_unlock(&boomgate_protocol.lock);
+}
+// Takes the time required (millisecons)
+// and multiplies it (in case we want to make it slower for testing)
+void sleeping_beauty(int seconds){
+    usleep(seconds * MULTIPLIER);
+}
+
+////////////////////////////////
 ////        Threads         ////
 ////////////////////////////////
-
-
-
-
-
 
 struct thread_var {
     var_entrance_manager_t lpr_entrance_vars[ENTRANCES];
@@ -384,7 +465,7 @@ int main(){
         printf("Memory access failed\n");
     }
     // printf("%d\n", shm.data->temp);
-    /*
+    
     parking_capacity = LEVEL_CAPACITY * LEVELS;
 
     // Setup for hash table and insert file contents
@@ -394,8 +475,8 @@ int main(){
         printf("Hashtable creation failed");
     }
     
-    
-
+    status_display(levels_fullness, &shm);
+    /*
     // setup all threads
     thread_list_t threads;
     thread_var_t thread_vars;
@@ -405,20 +486,20 @@ int main(){
 
     //car_t temp = {"aaaaaa"};
 
-    ////FILE* fp = fopen(BILLING_FILE, "w+");
+    FILE* fp = fopen(BILLING_FILE, "w+");
     //fprintf(fp,"sssssss\n");
-    ////fclose(fp);
+    fclose(fp);
 
     //watch_lpr(&shm.data->entrances[0].lpr, &hasht);
 
     // Wait until program closes
-    ////printf("Press ENTER to close the manager\n");
-    ////getchar();
+    printf("Press ENTER to close the manager\n");
+    getchar();
  
 
     // Memory cleanup
-    ////cleanup_threads(&threads);
-    ////htab_destroy(&hasht);
+    // cleanup_threads(&threads);
+    htab_destroy(&hasht);
     munmap((void *)shm.data, sizeof(shm.data));
     close(shm.fd);
 

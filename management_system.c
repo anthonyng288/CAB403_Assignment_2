@@ -10,9 +10,11 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <time.h>
+#include <string.h>
 
 #include "shm.h"
 #include "defines.h"
+
 
 
 
@@ -381,7 +383,7 @@ int main(){
     {
         printf("Memory access failed\n");
     }
-    printf("%d\n", shm.data->temp);
+    // printf("%d\n", shm.data->temp);
     /*
     parking_capacity = LEVEL_CAPACITY * LEVELS;
 

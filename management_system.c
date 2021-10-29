@@ -56,12 +56,6 @@ typedef struct car {
     time_t enter_time;
 } car_t;
 
-void bill_car(car_t* car){
-    FILE* fp = fopen(BILLING_FILE, "a");
-    fprintf(fp,"sssssss\n");
-    fclose(fp);
-    return;
-}
 // Calculates the bill for a car when they trigger the exit LPR
 void bill_car(car_t* car){
     // Open billing.txt in append mode

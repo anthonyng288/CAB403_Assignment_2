@@ -29,7 +29,7 @@ int16_t calc_median(int16_t input[5]){
 //      data: an array with the smoothed data for the carpark
 //      levels: the number of levels in the carpark
 //      pos: the positions in the data array with the newest entry  
-bool check_fire(int16_t data[][30], int levels, u_int8_t pos){
+bool check_fire(int16_t data[][30], u_int8_t pos){
     u_int8_t oldest_pos; // position of oldest data value
     if (pos == 0) {
         oldest_pos = 29;
@@ -37,7 +37,7 @@ bool check_fire(int16_t data[][30], int levels, u_int8_t pos){
         oldest_pos = pos - 1;
     }
     
-    for (u_int8_t i = 0; i < levels; i++) {
+    for (u_int8_t i = 0; i < LEVELS; i++) {
         if (data[i][pos] - data[i][oldest_pos] >= 8){
             return true;
         }
@@ -49,12 +49,12 @@ bool check_fire(int16_t data[][30], int levels, u_int8_t pos){
 // Monitor the carpark and exit when a fire is found
 // perams:
 //      levels: the number of levels in the carpark
-void tempmonitor(int levels, bool* fire){
+void tempmonitor(bool* fire){
     // store raw data
-    int16_t temp_data[levels][5];
+    int16_t temp_data[LEVELS][5];
     u_int8_t data_pos = 0;
     // store smoothed data
-    int16_t smooth_data[levels][30];
+    int16_t smooth_data[LEVELS][30];
     u_int8_t smooth_data_pos = 0;
 
 
@@ -64,7 +64,7 @@ void tempmonitor(int levels, bool* fire){
     // read 4 variables before a smoothed value can be calculated
     for (u_int8_t i = 0; i < 4; i++) {
         // Store raw data from every level
-        for (u_int8_t j = 0; j < levels; j++) {
+        for (u_int8_t j = 0; j < LEVELS; j++) {
             temp_data[j][data_pos] = shm_data->levels[j].temp;
         }
         data_pos++; // will not go out of bounds in loop
@@ -72,7 +72,7 @@ void tempmonitor(int levels, bool* fire){
     }
     // read 30 variables and calculate smoothed variables
     for (u_int8_t i = 0; i < 30; i++) {
-        for (u_int8_t j = 0; j < levels; j++) {
+        for (u_int8_t j = 0; j < LEVELS; j++) {
             temp_data[j][data_pos] = shm_data->levels[j].temp;
             smooth_data[j][smooth_data_pos] = calc_median(temp_data[j]);
         }
@@ -88,7 +88,7 @@ void tempmonitor(int levels, bool* fire){
     // read variables and determine if there should be a fire
     while (!fire)
     {
-        for (u_int8_t i = 0; i < levels; i++) {
+        for (u_int8_t i = 0; i < LEVELS; i++) {
             temp_data[i][data_pos] = shm_data->levels[i].temp;
             smooth_data[i][smooth_data_pos] = calc_median(temp_data[i]);
         }
@@ -100,16 +100,16 @@ void tempmonitor(int levels, bool* fire){
         if (smooth_data_pos >= 29){
             smooth_data_pos = 0;
         }
-        *fire = check_fire(smooth_data, LEVELS, smooth_data_pos);  
+        *fire = check_fire(smooth_data, smooth_data_pos);  
     }
     return;   
 }
 
 void update_signs(shared_data_t* parking, char input){
     for (u_int8_t i = 0; i < ENTRANCES; i++) {
-        pthread_mutex_lock(&parking->enterances[i].sign.lock);
-        parking->enterances[i].sign.display = input;
-        pthread_mutex_unlock(&parking->enterances[i].sign.lock);
+        pthread_mutex_lock(&parking->entrances[i].sign.lock);
+        parking->entrances[i].sign.display = input;
+        pthread_mutex_unlock(&parking->entrances[i].sign.lock);
     }
     return;
 }
@@ -127,7 +127,8 @@ void evacuate_garage(shared_data_t* parking, bool* fire){
 
     while (fire) {
         open_gates();
-        update_signs(parking, (evacmessage[evac_pos]) % 9);
+        // printf("THERE IS A FIRE");
+        update_signs(parking, (evacmessage[evac_pos]));
         // prevent integer overflow error
         if (evac_pos >= 8) {
             evac_pos = 0;
@@ -141,11 +142,11 @@ void evacuate_garage(shared_data_t* parking, bool* fire){
 
 int main(void){
     shm_fd = shm_open(SHM_NAME, O_RDWR, 0);
-	shm_data = (void *) mmap(0, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+	shm_data = (void *) mmap(0, sizeof(shm_fd), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
 	bool fire = false;
 
     // wait until a fire is detected
-    tempmonitor(LEVELS, &fire);
+    tempmonitor(&fire);
 
     // run until fire is gone
     evacuate_garage(shm_data, &fire);

@@ -12,9 +12,9 @@ void rand_temp(shared_mem_t *shm) {
         }
     }
     else {
-        int inc_dec = (rand() % (1 + 1 - -1)) + -1;
+        int inc_dec = (rand() % (1 + 1 - -1)) + -1; // either -1, 0 or 1
         for(int i = 0; i<LEVELS; i++) {
-            int change = rand() % 3;
+            int change = rand() % 2;
             if(shm->data->levels[i].temp > 42 && inc_dec != 1) {
                 shm->data->levels[i].temp = shm->data->levels[i].temp + (inc_dec*change);
             }
@@ -26,4 +26,20 @@ void rand_temp(shared_mem_t *shm) {
             }
         }
     }
+}
+void rate_of_rise_temps(shared_mem_t *shm) {
+    int rand_level_fire = rand() % LEVELS;
+    for(int i = 0; i<LEVELS; i++) {
+        if(i == rand_level_fire) {
+            shm->data->levels[i].temp = shm->data->levels[i].temp + 1;
+        }
+        else {
+            if(shm->data->levels[rand_level_fire].temp % 3 == 0) {
+                shm->data->levels[i].temp = shm->data->levels[i].temp + 1;
+            }
+        }
+    }
+}
+void fixed_temp_fire(shared_mem_t *shm) {
+
 }

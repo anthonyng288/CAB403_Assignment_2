@@ -100,11 +100,23 @@ void Screen (int col_width, shared_mem_t* shm) {
         printf("Screen:          %-*s", col_width-18, &shm->data->entrances[i].sign.display);
     }
 }
+void Alarm (int col_width, shared_mem_t* shm) {
+    printf("\n");
+    for(int i=0; i<LEVELS; i++) {
+        if(shm->data->levels->alarm == 0) {
+            printf("Alarm:       %-*s", col_width-14, "False");
+        }
+        else {
+            printf("Alarm:        %-*s", col_width-15, "True");
+        }
+    }
+}
 void print_levels(int levels_fullness[], int col_width, shared_mem_t* shm) {
     heading("Level", col_width, LEVELS);
     Temp(col_width, shm); 
     Capacity(col_width, levels_fullness);
     LPR("Level", col_width, shm);
+    Alarm(col_width, shm);
     printf("\r\n");
 }
 

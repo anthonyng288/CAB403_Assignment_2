@@ -24,7 +24,10 @@
 // Global variables
 shared_mem_t shm; // shared memory
 bool exit_condition = false; // exit condition
+bool fixedTempFire = false;
+bool rateOfRiseFire = false;
 int parking_capacity;
+volatile char input;
 volatile int car_count = 0;
 int levels_fullness[LEVELS];
 double revenue;
@@ -50,10 +53,10 @@ bool get_shared_object( shared_mem_t* shm, const char* share_name ){
 typedef struct thread_list {
     pthread_t boomgate_threads[ENTRANCES + EXITS];
     pthread_t lpr_threads[ENTRANCES]; // only entrance implemented
-    pthread_t status_display;
-    pthread_t rand_temps;
+    pthread_t status_display_thread;
+    pthread_t rand_temps_thread;
+    pthread_t user_input_thread;
 } thread_list_t;
-
 
 ////////////////////////////////
 ////           Car          ////
@@ -62,6 +65,7 @@ typedef struct thread_list {
 typedef struct car {
     char* lp;
     time_t enter_time;
+    int park_level;
 } car_t;
 
 // Calculates the bill for a car when they trigger the exit LPR
@@ -105,8 +109,6 @@ void calculate_total_revenue() {
     }    
 }
 
-
-
 ////////////////////////////////
 ////        Hashtable       ////
 ////////////////////////////////
@@ -124,7 +126,6 @@ struct htab
     item_t **buckets;
     size_t size;
 };
-
 
 // The Bernstein hash function.
 // Modified to only use 6 character strings (reliabillity)
@@ -150,7 +151,6 @@ size_t htab_index(htab_t *h, char *key)
     
     return djb_hash(temp) % h->size;
 }
-
 
 // Add a value into hash table
 bool htab_add(htab_t *h, char *key){
@@ -192,9 +192,6 @@ void htab_destroy(htab_t *h)
     h->buckets = NULL;
     h->size = 0;
 }
-
-
-
 // Read through a file of numberplates and insert into hash table
 // conditions:
 //     input: a text file consisting of lines of exactly 6 characters
@@ -360,11 +357,44 @@ void manager_boomgate(pc_boom_t* boom){
     }
     
 }
+// Functions that listens for user input
+void user_input_listener(shared_mem_t* shm){
+    while (!exit_condition) {
+        input=getchar();
+        if (input == 'f') {
+            printf("there is a fixed temp fire!");
+            fixedTempFire = !fixedTempFire;
+            rateOfRiseFire = false;
+            if(!fixedTempFire) {
+                for(int i = 0; i<LEVELS; i++) {
+                    shm->data->levels[i].temp = 20;
+                }
+            }
+        }
+        else if (input == 'r') {
+            printf("there is a rate of rise fire!");
+            rateOfRiseFire = !rateOfRiseFire;
+            fixedTempFire = false;
+            if(!rateOfRiseFire) {
+                for(int i = 0; i<LEVELS; i++) {
+                    shm->data->levels[i].temp = 20;
+                }
+            }
+        }
+        else if (input == 'e' || input == 'q') {
+            exit_condition = true;
+            // printf("You want to exit the program"); 
+        }
+    }
+    
+}
 
 // Function updates the status_screen every 1sec
-void status_screen(shared_mem_t* shm){
+void status_screen_thread(shared_mem_t* shm){
     while (!exit_condition) {
         status_display(levels_fullness, revenue, shm);
+        printf("ROR Fire: %s\n", rateOfRiseFire ? "True" : "False");
+        printf("FT Fire: %s\n", fixedTempFire ? "True" : "False");
         sleep(1);
     }
 }
@@ -372,9 +402,24 @@ void status_screen(shared_mem_t* shm){
 // Function updates the temperature every 1-5secs
 void rand_temp_thread(shared_mem_t* shm){
     while (!exit_condition) {
-        rand_temp(shm);
-        int secs = rand() % 6;
-        sleep(secs);
+        // rand_temp(shm);
+        // sleep(1);
+        if(!rateOfRiseFire && !fixedTempFire) {
+            rand_temp(shm);
+            sleep(1);
+        }
+        else if(rateOfRiseFire) {
+            rate_of_rise_temps(shm);
+            sleep(1);
+
+            // printf("there is a rateofrisefire");
+        }
+        else if(fixedTempFire) {
+            fixed_temp_fire(shm);
+            sleep(3);
+
+            // printf("there is a fixed fire");
+        }
     }
 }
 
@@ -443,12 +488,16 @@ bool init_threads(thread_list_t* t_list, thread_var_t* t_var, htab_t* htab){
     &shm.data->entrances[0].boom)){
         return EXIT_FAILURE;
     }*/
-    if(pthread_create(&t_list->status_display, NULL, 
-    (void*)status_screen, &shm)){
+    if(pthread_create(&t_list->status_display_thread, NULL, 
+    (void*)status_screen_thread, &shm)){
         return EXIT_FAILURE;
     }
-    if(pthread_create(&t_list->rand_temps, NULL, 
+    if(pthread_create(&t_list->rand_temps_thread, NULL, 
     (void*)rand_temp_thread, &shm)){
+        return EXIT_FAILURE;
+    }
+    if(pthread_create(&t_list->user_input_thread, NULL, 
+    (void*)user_input_listener, &shm)){
         return EXIT_FAILURE;
     }
 
@@ -466,7 +515,7 @@ void exit_boomgates(thread_list_t* t_list){
 
 void cleanup_threads(thread_list_t* t_list){
     exit_condition = true;
-    // Enterances
+    // Entrances
     for (size_t i = 0; i < ENTRANCES; i++){
         pthread_join(t_list->boomgate_threads[i], NULL);
     }
@@ -511,8 +560,11 @@ int main(){
     //watch_lpr(&shm.data->entrances[0].lpr, &hasht);
 
     // Wait until program closes
-    printf("Press ENTER to close the manager\n");
-    getchar();
+    // printf("Press ENTER to close the manager\n");
+    while(!exit_condition) {
+    //    input = getchar();
+    }
+
  
     // Memory cleanup
     cleanup_threads(&threads);

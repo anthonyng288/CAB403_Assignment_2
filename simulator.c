@@ -16,7 +16,7 @@
 
 
 // Global variables
-
+bool exit_condition = false; // exit condition
 int shm_fd;
 // shared_mem_t sh_mem; // shared memory
 
@@ -24,6 +24,9 @@ int shm_fd;
 volatile void *shm;
 pthread_mutex_t alarm_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t alarm_condvar = PTHREAD_COND_INITIALIZER;
+typedef struct thread_list {
+    pthread_t car_creation_thread;
+} thread_list_t;
 
 // Takes the time required (millisecons)
 // and multiplies it (in case we want to make it slower for testing)
@@ -70,7 +73,7 @@ struct node
 };
 
 // List of ques for entry to the carpark
-node_t* car_entry_que[ENTRANCES];
+node_t* car_entry_queue[ENTRANCES];
 
 // add a node to the end of the list
 node_t* l_list_add(node_t* head, char car[6]){
@@ -150,7 +153,13 @@ void l_list_print(node_t* head){
     printf("\n");     
 }
 
-
+void random_lp(shared_mem_t* shm){
+    while (!exit_condition) {
+        printf("Licence plate: 000000");
+        sleep(1);
+    }
+    
+}
 
 
 // initialises the mutex and cond for a returns 1 if it fails
@@ -206,7 +215,7 @@ bool init_all(shared_data_t* data){
         failed += init_lpr(&data->entrances[i].lpr, &mutex_atr, &cond_atr);
         failed += init_boomgate(&data->entrances[i].boom, &mutex_atr, &cond_atr);
         failed += init_sign(&data->entrances[i].sign, &mutex_atr, &cond_atr);
-        car_entry_que[i] = NULL; // car que
+        car_entry_queue[i] = NULL; // car que
     }
     for (u_int8_t i = 0; i < EXITS; i++){
         // exits
@@ -224,6 +233,15 @@ bool init_all(shared_data_t* data){
         return false;
     }
 }
+
+bool init_threads(thread_list_t* t_list){
+    if(pthread_create(&t_list->car_creation_thread, NULL, 
+    (void*)random_lp, &shm)){
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
+}
+
 
 //Protect calls to rand() with a mutex as rand () accesses a global variable
 //containing the current random seed.)
@@ -367,7 +385,7 @@ void boomgate_func_close(pc_boom_t boomgate_protocol){
 
 }
 
-// add a car the the que for an entrance and trigger LPR if needed
+// add a car the the queue for an entrance and trigger LPR if needed
 // if cars already exist within the que, lpr is already triggered and the list will be cleared
 void car_add(shared_data_t* data, char licence[6], int entry) {
     pthread_cond_broadcast(&data->entrances[entry].lpr.cond);
@@ -391,13 +409,13 @@ void car_entry(car_entry_struct_t* input) {
     if (data->entrances[entry].sign.display != 'X') {
         // create an instance of the car that has been admitted
     }
-    l_list_remove(car_entry_que[entry]); // remove car from linked list
+    l_list_remove(car_entry_queue[entry]); // remove car from linked list
     printf("CAR STATUS %c\n", data->entrances[entry].sign.display);
     data->entrances[entry].sign.display = '\0'; // reset display
-    if (car_entry_que[entry] != NULL) {
+    if (car_entry_queue[entry] != NULL) {
         usleep(2000);
         for (u_int8_t i = 5; i >= 0; i--) {
-            data->entrances[entry].lpr.l_plate[i] = car_entry_que[entry]->licence[i];
+            data->entrances[entry].lpr.l_plate[i] = car_entry_queue[entry]->licence[i];
         }
         pthread_cond_broadcast(&data->entrances[entry].lpr.cond);
     }
@@ -416,6 +434,10 @@ int main()
     if (!init_all(sh_mem.data)) {
         printf("Initialization failed\n");
     }
+    // thread_list_t threads;
+    // if (init_threads(&threads)){
+    //     printf("Thread creation failed");
+    // }
     // Testing random license generator
     // protect_rand_t pr= PTHREAD_MUTEX_INITIALIZER;
     // for (int i = 0; i < 10; i++){

@@ -25,6 +25,12 @@ volatile void *shm;
 pthread_mutex_t alarm_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t alarm_condvar = PTHREAD_COND_INITIALIZER;
 
+typedef struct car {
+    char* lp;
+    time_t enter_time;
+} car_t;
+
+
 // Takes the time required (millisecons)
 // and multiplies it (in case we want to make it slower for testing)
 void sleeping_beauty(int seconds){
@@ -407,6 +413,7 @@ void car_entry(car_entry_struct_t* input) {
 
 int main()
 {
+    protect_rand_t pr;
     shared_mem_t sh_mem; // shared memory
 
     // Create shared memory segment
@@ -416,6 +423,16 @@ int main()
     if (!init_all(sh_mem.data)) {
         printf("Initialization failed\n");
     }
+
+    int car_creation_time = random_car_creation_time(pr);
+
+    for(;;){
+        usleep(car_creation_time); //may create busy waiting
+        car_t car; //name needs to be dynamic if we're looping and making this 
+        
+
+    }
+
     // Testing random license generator
     // protect_rand_t pr= PTHREAD_MUTEX_INITIALIZER;
     // for (int i = 0; i < 10; i++){

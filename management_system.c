@@ -22,6 +22,7 @@ shared_mem_t shm; // shared memory
 bool exit_condition = false; // exit condition
 int parking_capacity;
 volatile int car_count = 0;
+pthread_mutex_t capacity_lock;
 
 
 typedef struct var_entrance_manager var_entrance_manager_t;
@@ -189,7 +190,13 @@ bool search_bucket(item_t *item, char *input){
     {
         if (input[i] != item->value[i])
         {
-            return search_bucket(item->next, input);
+            if (item->next != NULL) {
+                return search_bucket(item->next, input);
+            } else {
+                return false;
+            }
+            
+            
         }
     }
     // search successfull
@@ -248,13 +255,42 @@ struct var_entrance_manager {
 void entrance_lpr(var_entrance_manager_t* variables) {
     p_enterance_t* ent = variables->ent;
     htab_t* h = variables->h;
-    //pthread_cond_wait(&ent->lpr.cond, &ent->lpr.lock);
-    printf("%c\n", ent->sign.display);
-    if (search_plate(h, (char*)&ent->sign.display)) {
-        printf("ACCEPT\n");
-    } else {
-        printf("DECLINE");
+    pthread_mutex_lock(&ent->lpr.lock);
+
+    while (1)
+    {
+        while (ent->lpr.l_plate[0] == '\0')
+        {
+            pthread_cond_wait(&ent->lpr.cond, &ent->lpr.lock);
+        }
+        
+        if (search_plate(h, (char*)ent->lpr.l_plate)){
+            pthread_mutex_lock(&capacity_lock);
+            if (car_count < parking_capacity){
+                car_count++;
+                pthread_mutex_unlock(&capacity_lock);
+                pthread_mutex_lock(&ent->sign.lock);
+                ent->sign.display = '2';
+                pthread_mutex_unlock(&ent->sign.lock);
+                printf("SENT TO LEVEL 2\n");
+
+            } else {
+                pthread_mutex_unlock(&capacity_lock);
+                pthread_mutex_lock(&ent->sign.lock);
+                ent->sign.display = 'X';
+                pthread_mutex_unlock(&ent->sign.lock);
+                printf("NO SPACE\n");
+            }
+        } else {
+            pthread_mutex_lock(&ent->sign.lock);
+            ent->sign.display = 'X';
+            pthread_mutex_unlock(&ent->sign.lock);
+            printf("TURNED AWAY \n");
+        }
+        ent->lpr.l_plate[0] = '\0'; // reset lpr
+        pthread_cond_signal(&ent->sign.cond);
     }
+    pthread_mutex_unlock(&ent->lpr.lock);
 }
 
 
@@ -346,8 +382,7 @@ int main(){
     {
         printf("Memory access failed\n");
     }
-    printf("%d\n", shm.data->temp);
-    /*
+    
     parking_capacity = LEVEL_CAPACITY * LEVELS;
 
     // Setup for hash table and insert file contents
@@ -357,31 +392,35 @@ int main(){
         printf("Hashtable creation failed");
     }
     
-    
+    // init mutex for carpark capacity
+    pthread_mutex_init(&capacity_lock, NULL);
 
     // setup all threads
     thread_list_t threads;
     thread_var_t thread_vars;
     if (init_threads(&threads, &thread_vars, &hasht)){
         printf("Thread creation failed");
-    }*/
+    }
 
     //car_t temp = {"aaaaaa"};
 
-    ////FILE* fp = fopen(BILLING_FILE, "w+");
+    FILE* fp = fopen(BILLING_FILE, "w+");
     //fprintf(fp,"sssssss\n");
-    ////fclose(fp);
+    fclose(fp);
 
     //watch_lpr(&shm.data->entrances[0].lpr, &hasht);
 
-    // Wait until program closes
-    ////printf("Press ENTER to close the manager\n");
-    ////getchar();
+
+    var_entrance_manager_t temp_str;
+    temp_str.ent = &shm.data->entrances[0];
+    temp_str.h = &hasht;
+
+    entrance_lpr(&temp_str);
  
 
     // Memory cleanup
-    ////cleanup_threads(&threads);
-    ////htab_destroy(&hasht);
+    cleanup_threads(&threads);
+    htab_destroy(&hasht);
     munmap((void *)shm.data, sizeof(shm.data));
     close(shm.fd);
 

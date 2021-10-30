@@ -87,6 +87,7 @@ node_t* l_list_add(node_t* head, char car[6]){
     
 
     if (head == NULL) {
+        printf("1 ITEM\n");
         return new_node;
     }
     node_t* temp = head;
@@ -104,6 +105,7 @@ node_t* l_list_remove(node_t* head){
     }
     if (head->next == NULL) { // one entry in list
         free(head);
+        printf("LIST IS EMPTY\n");
         return NULL;
     }
     node_t* temp = head->next;
@@ -370,7 +372,17 @@ void boomgate_func_close(pc_boom_t boomgate_protocol){
 // add a car the the que for an entrance and trigger LPR if needed
 // if cars already exist within the que, lpr is already triggered and the list will be cleared
 void car_add(shared_data_t* data, char licence[6], int entry) {
-    pthread_cond_broadcast(&data->entrances[entry].lpr.cond);
+    car_entry_que[entry] = l_list_add(car_entry_que[entry], licence);
+    if (car_entry_que[entry]->next == NULL)
+    {
+        for (int8_t i = 5; i >= 0; i--) {
+            data->entrances[entry].lpr.l_plate[i] = licence[i];
+        }
+        pthread_cond_broadcast(&data->entrances[entry].lpr.cond);
+    } else {
+        printf("SECOND CAR\n");
+    }
+    
 }
 
 typedef struct car_enty_struct car_entry_struct_t;
@@ -382,27 +394,32 @@ struct car_enty_struct {
 
 // ensures all cars enter the carpark WIP
 void car_entry(car_entry_struct_t* input) {
-    shared_data_t* data = input->data;
-    int entry = input->entry;
-    pthread_mutex_lock(&data->entrances[entry].sign.lock);
-    while (data->entrances[entry].sign.display == '\0') {
-        pthread_cond_wait(&data->entrances[entry].sign.cond, &data->entrances[entry].sign.lock);
-    }
-    if (data->entrances[entry].sign.display != 'X') {
-        // create an instance of the car that has been admitted
-    }
-    l_list_remove(car_entry_que[entry]); // remove car from linked list
-    printf("CAR STATUS %c\n", data->entrances[entry].sign.display);
-    data->entrances[entry].sign.display = '\0'; // reset display
-    if (car_entry_que[entry] != NULL) {
-        usleep(2000);
-        for (u_int8_t i = 5; i >= 0; i--) {
-            data->entrances[entry].lpr.l_plate[i] = car_entry_que[entry]->licence[i];
+    p_enterance_t* ent = &input->data->entrances[input->entry];
+    pthread_mutex_lock(&ent->sign.lock);
+    while (1)
+    {
+        while (ent->sign.display == '\0') {
+            
+            pthread_cond_wait(&ent->sign.cond, &ent->sign.lock);
         }
-        pthread_cond_broadcast(&data->entrances[entry].lpr.cond);
+        if (ent->sign.display == 'X') {
+            // Turn car away
+            car_entry_que[input->entry] = l_list_remove(car_entry_que[input->entry]);
+            printf("CAR NOT ACCEPTED\n");
+        } else {
+            car_entry_que[input->entry] = l_list_remove(car_entry_que[input->entry]);
+            printf("CAR ACCEPTED\n");
+        }
+        ent->sign.display = '\0';
+        if (car_entry_que[input->entry]!= NULL) {
+            for (int8_t i = 5; i >= 0; i--) {
+                ent->lpr.l_plate[i] = car_entry_que[input->entry]->licence[i];
+            }
+            pthread_cond_broadcast(&ent->lpr.cond);
+        }
+        
     }
-    
-    
+    pthread_mutex_unlock(&ent->sign.lock);
 }
 
 int main()
@@ -424,11 +441,23 @@ int main()
     //     printf("%s \n", ram);
     // }
 
+    pthread_t temp_thread;
+    car_entry_struct_t temp_str;
+    temp_str.data = sh_mem.data;
+    temp_str.entry = 0;
 
+    pthread_create(&temp_thread, NULL, (void*)car_entry, &temp_str);
 
+    getchar();
 
-    sh_mem.data->temp = 66;
-    printf("%d\n", sh_mem.data->temp);
+    char temp_char[6] = {'6', '1', '5', 'P', 'K', '8'};
+    char temp_char1[6] = {'6', '1', '5', 'P', 'K', '9'};
+    char temp_char2[6] = {'6', '1', '5', 'P', 'K', 'L'};
+    car_add(sh_mem.data, temp_char, 0);
+
+    
+    car_add(sh_mem.data, temp_char1, 0);
+    car_add(sh_mem.data, temp_char2, 0);
 
 
     getchar();

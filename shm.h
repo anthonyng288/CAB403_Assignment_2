@@ -17,7 +17,7 @@
 typedef struct pc_lpr {
     pthread_mutex_t lock;
     pthread_cond_t cond;
-    char l_plate[6];
+    volatile char l_plate[6];
 
 } pc_lpr_t;
 

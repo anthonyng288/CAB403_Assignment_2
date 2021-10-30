@@ -163,7 +163,7 @@ int main() //This should be void Rule 7
 			goto emergency_mode;
 		}
 		usleep(1000);
-	}
+	} 
 	
 	emergency_mode:
 	fprintf(stderr, "*** ALARM ACTIVE ***\n");

@@ -414,6 +414,7 @@ void car_entry(car_entry_struct_t* input) {
 int main()
 {
     protect_rand_t pr;
+    pthread_mutex_init(pr->lock);
     shared_mem_t sh_mem; // shared memory
 
     // Create shared memory segment
@@ -425,11 +426,21 @@ int main()
     }
 
     int car_creation_time = random_car_creation_time(pr);
-
-    for(;;){
+    
+    int i = 0;
+   while(1){
         usleep(car_creation_time); //may create busy waiting
         car_t car; //name needs to be dynamic if we're looping and making this 
-        
+        char* plate = NULL;
+        plate = random_plate(); //still needs hashtable and pr
+
+        car->plate = plate;
+        int parking_time = random_parking_time(pr);
+        car->time = parking_time;
+        car_entry_que[i] = car;
+        free(plate);
+        i++;
+
 
     }
 

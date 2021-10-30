@@ -10,9 +10,13 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <time.h>
+#include <string.h>
 
 #include "shm.h"
 #include "defines.h"
+#include "status_display.c"
+#include "rand_temp.c"
+
 
 
 
@@ -22,7 +26,12 @@ shared_mem_t shm; // shared memory
 bool exit_condition = false; // exit condition
 int parking_capacity;
 volatile int car_count = 0;
+<<<<<<< HEAD
 pthread_mutex_t capacity_lock;
+=======
+int levels_fullness[LEVELS];
+double revenue;
+>>>>>>> 0764d218e7e3e28473594cb2e90ca81d1c0b2d18
 
 
 typedef struct var_entrance_manager var_entrance_manager_t;
@@ -45,6 +54,8 @@ bool get_shared_object( shared_mem_t* shm, const char* share_name ){
 typedef struct thread_list {
     pthread_t boomgate_threads[ENTRANCES + EXITS];
     pthread_t lpr_threads[ENTRANCES]; // only entrance implemented
+    pthread_t status_display;
+    pthread_t rand_temps;
 } thread_list_t;
 
 
@@ -57,13 +68,46 @@ typedef struct car {
     time_t enter_time;
 } car_t;
 
+// Calculates the bill for a car when they trigger the exit LPR
 void bill_car(car_t* car){
+    // Open billing.txt in append mode
     FILE* fp = fopen(BILLING_FILE, "a");
-    fprintf(fp,"sssssss\n");
+    // Calculate the difference between car->enter_time 
+    // and exit_time
+    time_t exit_time = time(0) * 1000;
+    double total_time = difftime(exit_time, car->enter_time);
+    // Calculate total bill from time_spent in the car park
+    double bill = total_time * 0.05;
+    
+    // Write to billing.txt file
+    fprintf(fp,"%s $%.02f\n", car->lp, bill);
     fclose(fp);
-    return;
 }
-
+// Calculates the total revenue for the car park
+void calculate_total_revenue() {
+    FILE *fp;
+    char * line = NULL;
+    size_t len = 0;
+    ssize_t read;
+    // double revenue = 0.0;
+    
+    if((fp = fopen(BILLING_FILE, "r")) != NULL) {
+        while ((read = getline(&line, &len, fp)) != -1) {
+            char money_str[len];
+            double money_dbl;
+            char *eptr;
+            // Get substring of each car's bill total
+            strncpy(money_str, line+8, len);
+            // Convert string to double
+            money_dbl = strtod(money_str, &eptr);
+            revenue += money_dbl; 
+        }  
+        fclose(fp);
+    }
+    else {
+        printf("File does not exist.");
+    }    
+}
 
 
 
@@ -246,6 +290,61 @@ bool search_plate(htab_t *h, char *input){
         return search_bucket(head, input);
     }
 }
+////////////////////////////////
+////       Entering         ////
+////////////////////////////////
+//Ensures that there is room in the car park before
+//allowing new vehicles in (number of cars < number of levels * the number of cars per level).
+bool cp_has_space (int num_cars){
+    if (num_cars < (LEVELS * LEVEL_CAPACITY)){
+        return true;
+    }
+    else{
+        return false;
+    }
+}
+//Chooses a random available level
+char available_level(){
+    
+    //show a character between ‘1’ and ‘5’ 
+    //floor the driver should park on
+    for (int i = 0; i < LEVELS; i++){
+        if (levels_fullness[i] < LEVEL_CAPACITY){
+            levels_fullness[i] += 1;
+            char c = (i + 1) +'0';
+            return c;           
+        }
+    }
+    // If the driver is unable to access the car park due to it being full, the sign will show the
+    //character ‘F
+    return 'F';
+}
+//Determine what message to input in the entry sign for the car
+// conditions:
+// input: if the plate is or not allowed in
+// input: if the carpark has space or not
+char entry_message( bool search_plate, bool cp_has_space){
+    
+   //
+    if(cp_has_space){
+        if (search_plate){
+            //show a character between ‘1’ and ‘5’ 
+            //floor the driver should park on
+            return available_level();
+        }
+        else{
+            //If the driver is unable to access the car park due to not being in the access file, the
+            //sign will show the character ‘X’
+            ;
+            return 'X';
+        }
+    }
+    else{
+        // If the driver is unable to access the car park due to it being full, the sign will show the
+        //character ‘F
+        return 'F';
+    }
+}
 
 struct var_entrance_manager {
     p_enterance_t* ent;
@@ -255,6 +354,7 @@ struct var_entrance_manager {
 void entrance_lpr(var_entrance_manager_t* variables) {
     p_enterance_t* ent = variables->ent;
     htab_t* h = variables->h;
+<<<<<<< HEAD
     pthread_mutex_lock(&ent->lpr.lock);
 
     while (1)
@@ -289,11 +389,17 @@ void entrance_lpr(var_entrance_manager_t* variables) {
         }
         ent->lpr.l_plate[0] = '\0'; // reset lpr
         pthread_cond_signal(&ent->sign.cond);
+=======
+    //pthread_cond_wait(&ent->lpr.cond, &ent->lpr.lock);
+    printf("%c\n", ent->sign.display);
+    if (search_plate(h, (char*)&ent->lpr.l_plate)) {
+        printf("ACCEPT\n");
+    } else {
+        printf("DECLINE");
+>>>>>>> 0764d218e7e3e28473594cb2e90ca81d1c0b2d18
     }
     pthread_mutex_unlock(&ent->lpr.lock);
 }
-
-
 
 // Functions waits until a boomgate is signaled then opens or closes it
 void manager_boomgate(pc_boom_t* boom){
@@ -303,20 +409,61 @@ void manager_boomgate(pc_boom_t* boom){
     
 }
 
+// Function updates the status_screen every 1sec
+void status_screen(shared_mem_t* shm){
+    while (!exit_condition) {
+        status_display(levels_fullness, revenue, shm);
+        sleep(1);
+    }
+}
+
+// Function updates the temperature every 1-5secs
+void rand_temp_thread(shared_mem_t* shm){
+    while (!exit_condition) {
+        rand_temp(shm);
+        int secs = rand() % 6;
+        sleep(secs);
+    }
+}
+
+////////////////////////////////
+////       Boomgates        ////
+////////////////////////////////
+//Tell when to raise boomgates
+void boomgate_func_raising(pc_boom_t boomgate_protocol){
+        pthread_mutex_lock(&boomgate_protocol.lock);
+        if(boomgate_protocol.status == 'C'){
+            // change the status automatically no waiting
+            boomgate_protocol.status = 'R';
+            pthread_cond_signal(&boomgate_protocol.cond);
+        }
+        pthread_mutex_unlock(&boomgate_protocol.lock);
+        
+      
+}
+//Tell when to lower boomgates
+void boomgate_func_lowering(pc_boom_t boomgate_protocol){
+    pthread_mutex_lock(&boomgate_protocol.lock);
+        if(boomgate_protocol.status == 'O'){
+            // change the status automatically no waiting
+            boomgate_protocol.status = 'L';
+            pthread_cond_signal(&boomgate_protocol.cond);
+        }
+        pthread_mutex_unlock(&boomgate_protocol.lock);
+}
+// Takes the time required (millisecons)
+// and multiplies it (in case we want to make it slower for testing)
+void sleeping_beauty(int seconds){
+    usleep(seconds * MULTIPLIER);
+}
+
 ////////////////////////////////
 ////        Threads         ////
 ////////////////////////////////
 
-
-
-
-
-
 struct thread_var {
     var_entrance_manager_t lpr_entrance_vars[ENTRANCES];
 };
-
-
 
 bool init_threads(thread_list_t* t_list, thread_var_t* t_var, htab_t* htab){
     // Setup boomgates
@@ -344,6 +491,14 @@ bool init_threads(thread_list_t* t_list, thread_var_t* t_var, htab_t* htab){
     &shm.data->entrances[0].boom)){
         return EXIT_FAILURE;
     }*/
+    if(pthread_create(&t_list->status_display, NULL, 
+    (void*)status_screen, &shm)){
+        return EXIT_FAILURE;
+    }
+    if(pthread_create(&t_list->rand_temps, NULL, 
+    (void*)rand_temp_thread, &shm)){
+        return EXIT_FAILURE;
+    }
 
     return EXIT_SUCCESS;
 }
@@ -382,8 +537,11 @@ int main(){
     {
         printf("Memory access failed\n");
     }
+<<<<<<< HEAD
     
     parking_capacity = LEVEL_CAPACITY * LEVELS;
+=======
+>>>>>>> 0764d218e7e3e28473594cb2e90ca81d1c0b2d18
 
     // Setup for hash table and insert file contents
     htab_t hasht;
@@ -391,9 +549,13 @@ int main(){
     if (!htab_init(&hasht, buckets)) {
         printf("Hashtable creation failed");
     }
+<<<<<<< HEAD
     
     // init mutex for carpark capacity
     pthread_mutex_init(&capacity_lock, NULL);
+=======
+    parking_capacity = LEVEL_CAPACITY * LEVELS;
+>>>>>>> 0764d218e7e3e28473594cb2e90ca81d1c0b2d18
 
     // setup all threads
     thread_list_t threads;
@@ -401,23 +563,33 @@ int main(){
     if (init_threads(&threads, &thread_vars, &hasht)){
         printf("Thread creation failed");
     }
+<<<<<<< HEAD
 
     //car_t temp = {"aaaaaa"};
 
     FILE* fp = fopen(BILLING_FILE, "w+");
     //fprintf(fp,"sssssss\n");
+=======
+
+    FILE* fp = fopen(BILLING_FILE, "w+");
+>>>>>>> 0764d218e7e3e28473594cb2e90ca81d1c0b2d18
     fclose(fp);
 
     //watch_lpr(&shm.data->entrances[0].lpr, &hasht);
 
+<<<<<<< HEAD
 
     var_entrance_manager_t temp_str;
     temp_str.ent = &shm.data->entrances[0];
     temp_str.h = &hasht;
 
     entrance_lpr(&temp_str);
+=======
+    // Wait until program closes
+    printf("Press ENTER to close the manager\n");
+    getchar();
+>>>>>>> 0764d218e7e3e28473594cb2e90ca81d1c0b2d18
  
-
     // Memory cleanup
     cleanup_threads(&threads);
     htab_destroy(&hasht);

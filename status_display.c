@@ -67,7 +67,7 @@ void LPR (char *heading, int col_width, shared_mem_t* shm) {
     printf("\n");
     if(strcmp(heading, "Entrance") == 0) {
         for(int i=0; i<ENTRANCES; i++) {
-            printf("LPR:        %-*s", col_width-13, shm->data->enterances[i].lpr.l_plate);
+            printf("LPR:        %-*s", col_width-13, shm->data->entrances[i].lpr.l_plate);
         }
     }
     else if(strcmp(heading, "Level") == 0) {
@@ -85,7 +85,7 @@ void Boomgate (char *heading, int col_width, shared_mem_t* shm) {
     printf("\n");
     if(strcmp(heading, "Entrance") == 0) {
         for(int i=0; i<ENTRANCES; i++) {
-            printf("Boom gate:       %-*s", col_width-18, &shm->data->enterances[i].boom.status);
+            printf("Boom gate:       %-*s", col_width-18, &shm->data->entrances[i].boom.status);
         }
     }
     else if(strcmp(heading, "Exit") == 0) {
@@ -97,7 +97,7 @@ void Boomgate (char *heading, int col_width, shared_mem_t* shm) {
 void Screen (int col_width, shared_mem_t* shm) {
     printf("\n");
     for(int i=0; i<ENTRANCES; i++) {
-        printf("Screen:          %-*s", col_width-18, &shm->data->enterances[i].sign.display);
+        printf("Screen:          %-*s", col_width-18, &shm->data->entrances[i].sign.display);
     }
 }
 void print_levels(int levels_fullness[], int col_width, shared_mem_t* shm) {
@@ -122,19 +122,19 @@ void print_exits(int col_width, shared_mem_t* shm) {
     Boomgate("Exit", col_width, shm);
     printf("\r\n");
 }
-void print_revenue() {
+void print_revenue(double revenue) {
     printf(" \n");
     printf(" ---------------- \n");
-    printf("| Revenue:  $%.2d|\n", 2000);
-    printf(" ---------------- ");
+    printf("| Revenue:  $%.02f|\n", revenue);
+    printf(" ---------------- \n");
 }
-void status_display(int levels_fullness[], shared_mem_t* shm){
+void status_display(int levels_fullness[], double revenue, shared_mem_t* shm){
     int screen_size = get_win_size(); 
     int col_width = screen_size/MAX;  
-    
+    printf("\e[1;1H\e[2J");
     print_levels(levels_fullness, col_width, shm);
     print_entrances(col_width, shm);
     print_exits(col_width, shm);
 
-    print_revenue();
+    print_revenue(revenue);
 }

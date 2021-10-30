@@ -93,7 +93,6 @@ node_t* l_list_add(node_t* head, char car[6]){
     
 
     if (head == NULL) {
-        printf("1 ITEM\n");
         return new_node;
     }
     node_t* temp = head;
@@ -111,7 +110,6 @@ node_t* l_list_remove(node_t* head){
     }
     if (head->next == NULL) { // one entry in list
         free(head);
-        printf("LIST IS EMPTY\n");
         return NULL;
     }
     node_t* temp = head->next;
@@ -334,7 +332,7 @@ char* random_license_plate(htab_t *h, protect_rand_t pr){
     //char digits[10] = {"0123456789"};
     
     
-    if (valid == 0){
+    if (valid == 0){car_entry
         plate = unauthorised_plate(pr);
     }
     //if from the hash table
@@ -385,10 +383,7 @@ void car_add(shared_data_t* data, char licence[6], int entry) {
             data->entrances[entry].lpr.l_plate[i] = licence[i];
         }
         pthread_cond_broadcast(&data->entrances[entry].lpr.cond);
-    } else {
-        printf("SECOND CAR\n");
     }
-    
 }
 
 typedef struct car_enty_struct car_entry_struct_t;
@@ -411,10 +406,8 @@ void car_entry(car_entry_struct_t* input) {
         if (ent->sign.display == 'X') {
             // Turn car away
             car_entry_que[input->entry] = l_list_remove(car_entry_que[input->entry]);
-            printf("CAR NOT ACCEPTED\n");
         } else {
             car_entry_que[input->entry] = l_list_remove(car_entry_que[input->entry]);
-            printf("CAR ACCEPTED\n");
         }
         ent->sign.display = '\0';
         if (car_entry_que[input->entry]!= NULL) {
@@ -423,15 +416,35 @@ void car_entry(car_entry_struct_t* input) {
             }
             pthread_cond_broadcast(&ent->lpr.cond);
         }
-        
     }
     pthread_mutex_unlock(&ent->sign.lock);
+}
+typedef struct thread_var {
+    car_entry_struct_t entrance_vars[ENTRANCES];
+} thread_var_t;
+
+typedef struct thread_list {
+    pthread_t entrance_threads[ENTRANCES];
+} thread_list_t;
+
+int init_threads(thread_list_t* t_list, thread_var_t* t_var, shared_data_t* data){
+    for (int i = 0; i < ENTRANCES; i++) {
+        t_var->entrance_vars[i].data = data;
+        t_var->entrance_vars[i].entry = i;
+        if (pthread_create(&t_list->entrance_threads[i], NULL, (void*)car_entry,
+        &t_var->entrance_vars[i])){
+            return EXIT_FAILURE;
+        }
+    }
+    return EXIT_SUCCESS;
 }
 
 int main()
 {
-    protect_rand_t pr;
+    //protect_rand_t pr;
     shared_mem_t sh_mem; // shared memory
+    thread_var_t thread_vars;
+    thread_list_t thread_lists;
 
     // Create shared memory segment
     if(!create_shared_object(&sh_mem, SHM_NAME)){
@@ -441,14 +454,13 @@ int main()
         printf("Initialization failed\n");
     }
 
-    int car_creation_time = random_car_creation_time(pr);
+    //int car_creation_time = random_car_creation_time(pr);
 
-    for(;;){
+    /*for(;;){
         usleep(car_creation_time); //may create busy waiting
-        car_t car; //name needs to be dynamic if we're looping and making this 
+        //car_t car; //name needs to be dynamic if we're looping and making this 
         
-
-    }
+    }*/
 
     // Testing random license generator
     // protect_rand_t pr= PTHREAD_MUTEX_INITIALIZER;
@@ -458,24 +470,18 @@ int main()
     //     printf("%s \n", ram);
     // }
     
-
-    pthread_t temp_thread;
-    car_entry_struct_t temp_str;
-    temp_str.data = sh_mem.data;
-    temp_str.entry = 0;
-
-    pthread_create(&temp_thread, NULL, (void*)car_entry, &temp_str);
+    init_threads(&thread_lists, &thread_vars, sh_mem.data);
 
     getchar();
 
-    char temp_char[6] = {'6', '1', '5', 'P', 'K', '8'};
-    char temp_char1[6] = {'6', '1', '5', 'P', 'K', '9'};
-    char temp_char2[6] = {'6', '1', '5', 'P', 'K', 'L'};
-    car_add(sh_mem.data, temp_char, 0);
 
+    char temp_char2[6] = {'3', '4', '0', 'P', 'B', 'T'};
+    for (size_t j = 0; j < 101; j++)
+    {
+        car_add(sh_mem.data, temp_char2, 0);
+    }
     
-    car_add(sh_mem.data, temp_char1, 0);
-    car_add(sh_mem.data, temp_char2, 0);
+    
 
 
     getchar();

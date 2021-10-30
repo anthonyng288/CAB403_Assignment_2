@@ -26,12 +26,9 @@ shared_mem_t shm; // shared memory
 bool exit_condition = false; // exit condition
 int parking_capacity;
 volatile int car_count = 0;
-<<<<<<< HEAD
 pthread_mutex_t capacity_lock;
-=======
 int levels_fullness[LEVELS];
 double revenue;
->>>>>>> 0764d218e7e3e28473594cb2e90ca81d1c0b2d18
 
 
 typedef struct var_entrance_manager var_entrance_manager_t;
@@ -52,7 +49,7 @@ bool get_shared_object( shared_mem_t* shm, const char* share_name ){
 }
 
 typedef struct thread_list {
-    pthread_t boomgate_threads[ENTRANCES + EXITS];
+    pthread_t entrance_threads[ENTRANCES];
     pthread_t lpr_threads[ENTRANCES]; // only entrance implemented
     pthread_t status_display;
     pthread_t rand_temps;
@@ -354,7 +351,7 @@ struct var_entrance_manager {
 void entrance_lpr(var_entrance_manager_t* variables) {
     p_enterance_t* ent = variables->ent;
     htab_t* h = variables->h;
-<<<<<<< HEAD
+    char send_to_level;
     pthread_mutex_lock(&ent->lpr.lock);
 
     while (1)
@@ -368,35 +365,27 @@ void entrance_lpr(var_entrance_manager_t* variables) {
             pthread_mutex_lock(&capacity_lock);
             if (car_count < parking_capacity){
                 car_count++;
+                printf("CURRENT CAP %d\n", car_count);
+                send_to_level = available_level();
                 pthread_mutex_unlock(&capacity_lock);
                 pthread_mutex_lock(&ent->sign.lock);
-                ent->sign.display = '2';
+                ent->sign.display = send_to_level;
                 pthread_mutex_unlock(&ent->sign.lock);
-                printf("SENT TO LEVEL 2\n");
 
             } else {
                 pthread_mutex_unlock(&capacity_lock);
                 pthread_mutex_lock(&ent->sign.lock);
                 ent->sign.display = 'X';
                 pthread_mutex_unlock(&ent->sign.lock);
-                printf("NO SPACE\n");
             }
         } else {
             pthread_mutex_lock(&ent->sign.lock);
             ent->sign.display = 'X';
             pthread_mutex_unlock(&ent->sign.lock);
-            printf("TURNED AWAY \n");
         }
+        printf("%c\n", send_to_level);
         ent->lpr.l_plate[0] = '\0'; // reset lpr
         pthread_cond_signal(&ent->sign.cond);
-=======
-    //pthread_cond_wait(&ent->lpr.cond, &ent->lpr.lock);
-    printf("%c\n", ent->sign.display);
-    if (search_plate(h, (char*)&ent->lpr.l_plate)) {
-        printf("ACCEPT\n");
-    } else {
-        printf("DECLINE");
->>>>>>> 0764d218e7e3e28473594cb2e90ca81d1c0b2d18
     }
     pthread_mutex_unlock(&ent->lpr.lock);
 }
@@ -462,39 +451,28 @@ void sleeping_beauty(int seconds){
 ////////////////////////////////
 
 struct thread_var {
-    var_entrance_manager_t lpr_entrance_vars[ENTRANCES];
+    var_entrance_manager_t entrance_vars[ENTRANCES];
 };
 
 bool init_threads(thread_list_t* t_list, thread_var_t* t_var, htab_t* htab){
     // Setup boomgates
     for (size_t i = 0; i < ENTRANCES; i++){
-        if (pthread_create(&t_list->boomgate_threads[i], NULL, (void*)manager_boomgate,
-        &shm.data->entrances[i].boom)){
+        t_var->entrance_vars[i].ent = &shm.data->entrances[i];
+        t_var->entrance_vars[i].h = htab;
+        if (pthread_create(&t_list->entrance_threads[i], NULL, (void*)entrance_lpr,
+        &t_var->entrance_vars[i])){
             return EXIT_FAILURE;
         }
-    }
-    for (size_t i = 0; i < EXITS; i++){
-        if (pthread_create(&t_list->boomgate_threads[i + ENTRANCES], NULL, 
-        (void*)manager_boomgate, &shm.data->exits[i].boom)){
-            return EXIT_FAILURE;
-        }
-    }
-    // Setup entrance LPRs
-    /*for (size_t i = 0; i < ENTRANCES; i++) {
-        t_var->lpr_entrance_vars[i].h = htab;
-        t_var->lpr_entrance_vars[i].ent = &shm.data->entrances[i];
-        if (pthread_create(&t_list->lpr_threads[i], NULL, (void*)entrance_lpr,
-        &t_var->lpr_entrance_vars[i]));
     }
 
-    if (pthread_create(&t_list->boomgate_threads[0], NULL, (void*)manager_boomgate,
-    &shm.data->entrances[0].boom)){
-        return EXIT_FAILURE;
-    }*/
-    if(pthread_create(&t_list->status_display, NULL, 
+
+    // entrance setup
+
+
+    /*if(pthread_create(&t_list->status_display, NULL, 
     (void*)status_screen, &shm)){
         return EXIT_FAILURE;
-    }
+    }*/
     if(pthread_create(&t_list->rand_temps, NULL, 
     (void*)rand_temp_thread, &shm)){
         return EXIT_FAILURE;
@@ -503,31 +481,6 @@ bool init_threads(thread_list_t* t_list, thread_var_t* t_var, htab_t* htab){
     return EXIT_SUCCESS;
 }
 
-void exit_boomgates(thread_list_t* t_list){
-    for (size_t i = 0; i < ENTRANCES; i++){
-        pthread_join(t_list->boomgate_threads[i], NULL);
-    }
-    for (size_t i = 0; i < EXITS; i++){
-        pthread_join(t_list->boomgate_threads[i + EXITS], NULL);
-    }
-}
-
-void cleanup_threads(thread_list_t* t_list){
-    exit_condition = true;
-    // Enterances
-    for (size_t i = 0; i < ENTRANCES; i++){
-        pthread_join(t_list->boomgate_threads[i], NULL);
-    }
-    for (size_t i = 0; i < EXITS; i++){
-        pthread_join(t_list->boomgate_threads[i + EXITS], NULL);
-    }
-    // LPRs
-    /*for (size_t i = 0; i < ENTRANCES; i++) {
-        pthread_cond_broadcast(&shm.data->entrances[i].lpr.cond);
-        pthread_join(t_list->lpr_threads[i], NULL);
-    }*/
-    
-}
 
 
 
@@ -537,11 +490,9 @@ int main(){
     {
         printf("Memory access failed\n");
     }
-<<<<<<< HEAD
     
     parking_capacity = LEVEL_CAPACITY * LEVELS;
-=======
->>>>>>> 0764d218e7e3e28473594cb2e90ca81d1c0b2d18
+    printf("CAP: %d\n", parking_capacity);
 
     // Setup for hash table and insert file contents
     htab_t hasht;
@@ -549,13 +500,10 @@ int main(){
     if (!htab_init(&hasht, buckets)) {
         printf("Hashtable creation failed");
     }
-<<<<<<< HEAD
     
     // init mutex for carpark capacity
     pthread_mutex_init(&capacity_lock, NULL);
-=======
     parking_capacity = LEVEL_CAPACITY * LEVELS;
->>>>>>> 0764d218e7e3e28473594cb2e90ca81d1c0b2d18
 
     // setup all threads
     thread_list_t threads;
@@ -563,35 +511,23 @@ int main(){
     if (init_threads(&threads, &thread_vars, &hasht)){
         printf("Thread creation failed");
     }
-<<<<<<< HEAD
 
     //car_t temp = {"aaaaaa"};
 
-    FILE* fp = fopen(BILLING_FILE, "w+");
-    //fprintf(fp,"sssssss\n");
-=======
 
     FILE* fp = fopen(BILLING_FILE, "w+");
->>>>>>> 0764d218e7e3e28473594cb2e90ca81d1c0b2d18
     fclose(fp);
 
     //watch_lpr(&shm.data->entrances[0].lpr, &hasht);
 
-<<<<<<< HEAD
 
-    var_entrance_manager_t temp_str;
-    temp_str.ent = &shm.data->entrances[0];
-    temp_str.h = &hasht;
-
-    entrance_lpr(&temp_str);
-=======
+    
     // Wait until program closes
     printf("Press ENTER to close the manager\n");
     getchar();
->>>>>>> 0764d218e7e3e28473594cb2e90ca81d1c0b2d18
  
     // Memory cleanup
-    cleanup_threads(&threads);
+    //cleanup_threads(&threads);
     htab_destroy(&hasht);
     munmap((void *)shm.data, sizeof(shm.data));
     close(shm.fd);

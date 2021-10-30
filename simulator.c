@@ -28,6 +28,12 @@ typedef struct thread_list {
     pthread_t car_creation_thread;
 } thread_list_t;
 
+typedef struct car {
+    char* lp;
+    time_t enter_time;
+} car_t;
+
+
 // Takes the time required (millisecons)
 // and multiplies it (in case we want to make it slower for testing)
 void sleeping_beauty(int seconds){
@@ -253,7 +259,7 @@ typedef struct protect_rand{
 } protect_rand_t;
 
 ////////////////////////////////
-////       Boomgates        ////
+////       Random           ////
 ///////////////////////////////
 
 int random_parking_time(protect_rand_t pr){
@@ -425,6 +431,8 @@ void car_entry(car_entry_struct_t* input) {
 
 int main()
 {
+    protect_rand_t pr;
+    pthread_mutex_init(pr->lock);
     shared_mem_t sh_mem; // shared memory
 
     // Create shared memory segment
@@ -438,6 +446,26 @@ int main()
     // if (init_threads(&threads)){
     //     printf("Thread creation failed");
     // }
+
+    int car_creation_time = random_car_creation_time(pr);
+    
+    int i = 0;
+    while(1){
+        usleep(car_creation_time); //may create busy waiting
+        car_t car; //name needs to be dynamic if we're looping and making this 
+        char* plate = NULL;
+        plate = random_plate(); //still needs hashtable and pr
+
+        car->plate = plate;
+        int parking_time = random_parking_time(pr);
+        car->time = parking_time;
+        car_entry_que[i] = car;
+        free(plate);
+        i++;
+
+
+    }
+
     // Testing random license generator
     // protect_rand_t pr= PTHREAD_MUTEX_INITIALIZER;
     // for (int i = 0; i < 10; i++){
@@ -445,7 +473,7 @@ int main()
     //     ram = random_license_plate(pr);
     //     printf("%s \n", ram);
     // }
-
+    
 
 
 

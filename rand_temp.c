@@ -41,5 +41,6 @@ void rate_of_rise_temps(shared_mem_t *shm) {
     }
 }
 void fixed_temp_fire(shared_mem_t *shm) {
-
+    shm->data->levels[2].temp = 62;
+    
 }

@@ -24,7 +24,10 @@
 // Global variables
 shared_mem_t shm; // shared memory
 bool exit_condition = false; // exit condition
+bool fixedTempFire = false;
+bool rateOfRiseFire = false;
 int parking_capacity;
+volatile char input;
 volatile int car_count = 0;
 pthread_mutex_t capacity_lock;
 int levels_fullness[LEVELS];
@@ -51,8 +54,9 @@ bool get_shared_object( shared_mem_t* shm, const char* share_name ){
 typedef struct thread_list {
     pthread_t entrance_threads[ENTRANCES];
     pthread_t lpr_threads[ENTRANCES]; // only entrance implemented
-    pthread_t status_display;
-    pthread_t rand_temps;
+    pthread_t status_display_thread;
+    pthread_t rand_temps_thread;
+    pthread_t user_input_thread;
 } thread_list_t;
 
 
@@ -399,19 +403,67 @@ void manager_boomgate(pc_boom_t* boom){
 }
 
 // Function updates the status_screen every 1sec
-void status_screen(shared_mem_t* shm){
+void status_screen_thread(shared_mem_t* shm){
     while (!exit_condition) {
         status_display(levels_fullness, revenue, shm);
+        printf("ROR Fire: %s\n", rateOfRiseFire ? "True" : "False");
+        printf("FT Fire: %s\n", fixedTempFire ? "True" : "False");
         sleep(1);
     }
 }
-
+// Functions that listens for user input
+void user_input_listener(shared_mem_t* shm){
+    while (!exit_condition) {
+        input=getchar();
+        if (input == 'f') {
+            printf("there is a fixed temp fire!");
+            fixedTempFire = !fixedTempFire;
+            rateOfRiseFire = false;
+            if(!fixedTempFire) {
+                for(int i = 0; i<LEVELS; i++) {
+                    shm->data->levels[i].temp = 20;
+                }
+            }
+        }
+        else if (input == 'r') {
+            printf("there is a rate of rise fire!");
+            rateOfRiseFire = !rateOfRiseFire;
+            fixedTempFire = false;
+            if(!rateOfRiseFire) {
+                for(int i = 0; i<LEVELS; i++) {
+                    shm->data->levels[i].temp = 20;
+                }
+            }
+        }
+        else if (input == 'e' || input == 'q') {
+            exit_condition = true;
+            // printf("You want to exit the program"); 
+        }
+    }
+    
+}
+    
 // Function updates the temperature every 1-5secs
 void rand_temp_thread(shared_mem_t* shm){
     while (!exit_condition) {
-        rand_temp(shm);
-        int secs = rand() % 6;
-        sleep(secs);
+        // rand_temp(shm);
+        // sleep(1);
+        if(!rateOfRiseFire && !fixedTempFire) {
+            rand_temp(shm);
+            sleep(1);
+        }
+        else if(rateOfRiseFire) {
+            rate_of_rise_temps(shm);
+            sleep(1);
+
+            // printf("there is a rateofrisefire");
+        }
+        else if(fixedTempFire) {
+            fixed_temp_fire(shm);
+            sleep(1);
+
+            // printf("there is a fixed fire");
+        }
     }
 }
 
@@ -464,27 +516,25 @@ bool init_threads(thread_list_t* t_list, thread_var_t* t_var, htab_t* htab){
         &t_var->entrance_vars[i])){
             return EXIT_FAILURE;
         }
+        if(pthread_create(&t_list->status_display_thread, NULL, 
+        (void*)status_screen_thread, &shm)){
+            return EXIT_FAILURE;
+        }
+        if(pthread_create(&t_list->rand_temps_thread, NULL, 
+        (void*)rand_temp_thread, &shm)){
+            return EXIT_FAILURE;
+        }
+        if(pthread_create(&t_list->user_input_thread, NULL, 
+        (void*)user_input_listener, &shm)){
+            return EXIT_FAILURE;
+        }
+
     }
-
-
-    // entrance setup
-
-
-    /*if(pthread_create(&t_list->status_display, NULL, 
-    (void*)status_screen, &shm)){
-        return EXIT_FAILURE;
-    }*/
-    if(pthread_create(&t_list->rand_temps, NULL, 
-    (void*)rand_temp_thread, &shm)){
-        return EXIT_FAILURE;
-    }
-
     return EXIT_SUCCESS;
 }
 
 
-
-
+    // entrance setup
 int main(){
     // Access shared memory
     if (!get_shared_object(&shm, SHM_NAME))

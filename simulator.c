@@ -348,19 +348,22 @@ char* random_license_plate(htab_t *h, protect_rand_t pr){
 ///////////////////////////////
 
 //Tell when to open boomgates
+pc_boom_t boomgates;
 void boomgate_func_open(pc_boom_t boomgate_protocol){
         pthread_mutex_lock(&boomgate_protocol.lock);
         if(boomgate_protocol.status == 'R'){
             // change the status to "O" after 10 milli
             sleeping_beauty(10);
             boomgate_protocol.status = 'O';
+            //Make these functions WAIT for signal from manager
+            pthread_cond_wait(boomgate_protocol.cond, boomgate_protocol.mutex);
         }
         pthread_mutex_unlock(&boomgate_protocol.lock);
 
           
 }
 
-//Tell when to close boomgates
+//Tell when to close boosmgates
 void boomgate_func_close(pc_boom_t boomgate_protocol){
     pthread_mutex_lock(&boomgate_protocol.lock);
 
@@ -371,6 +374,13 @@ void boomgate_func_close(pc_boom_t boomgate_protocol){
         }
         pthread_mutex_unlock(&boomgate_protocol.lock);
 
+}
+
+void boomgate_process(pc_boom_t boomgates){
+     //Probably very bad practice, will need to see
+    boomgate_func_open(boomgates);
+    usleep(20);
+    boomgate_func_close(boomgates);
 }
 
 // add a car the the que for an entrance and trigger LPR if needed
@@ -439,6 +449,27 @@ int init_threads(thread_list_t* t_list, thread_var_t* t_var, shared_data_t* data
     return EXIT_SUCCESS;
 }
 
+protect_rand_t pr;
+pthread_mutex_inti(pr->lock);
+
+void car_generator(protect_rand_t pr){
+
+    int car_creation_time = random_car_creation_time(pr);
+    usleep(car_creation_time);
+
+    car_t car; //Name needs to be dynamic
+    char* plate = NULL;
+    plate = "ABC123"; //Needs to be replaced with actual plate function
+
+    time_t parking_time = random_parking_time(pr); //May need to change time_t to int may not need time_t
+
+    
+    car_add(car, plate, parking_time);
+    free(plate;)
+
+    
+}
+
 int main()
 {
     //protect_rand_t pr;
@@ -454,14 +485,7 @@ int main()
         printf("Initialization failed\n");
     }
 
-    //int car_creation_time = random_car_creation_time(pr);
-
-    /*for(;;){
-        usleep(car_creation_time); //may create busy waiting
-        //car_t car; //name needs to be dynamic if we're looping and making this 
-        
-    }*/
-
+    
     // Testing random license generator
     // protect_rand_t pr= PTHREAD_MUTEX_INITIALIZER;
     // for (int i = 0; i < 10; i++){

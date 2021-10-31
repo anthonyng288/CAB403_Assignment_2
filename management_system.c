@@ -419,6 +419,7 @@ void rand_temp_thread(shared_mem_t* shm){
 ////       Boomgates        ////
 ////////////////////////////////
 //Tell when to raise boomgates
+pc_boom_t boomgates;
 void boomgate_func_raising(pc_boom_t boomgate_protocol){
         pthread_mutex_lock(&boomgate_protocol.lock);
         if(boomgate_protocol.status == 'C'){

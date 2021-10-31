@@ -76,7 +76,7 @@ struct node
 };
 
 // List of ques for entry to the carpark
-node_t* car_entry_que[ENTRANCES];
+node_t* car_entry_queue[ENTRANCES];
 
 // add a node to the end of the list
 node_t* l_list_add(node_t* head, char car[6]){
@@ -212,7 +212,7 @@ bool init_all(shared_data_t* data){
         failed += init_lpr(&data->entrances[i].lpr, &mutex_atr, &cond_atr);
         failed += init_boomgate(&data->entrances[i].boom, &mutex_atr, &cond_atr);
         failed += init_sign(&data->entrances[i].sign, &mutex_atr, &cond_atr);
-        car_entry_que[i] = NULL; // car que
+        car_entry_queue[i] = NULL; // car que
     }
     for (u_int8_t i = 0; i < EXITS; i++){
         // exits
@@ -347,47 +347,47 @@ char* random_license_plate(htab_t *h, protect_rand_t pr){
 ////       Boomgates        ////
 ///////////////////////////////
 
-//Tell when to open boomgates
-pc_boom_t boomgates;
-void boomgate_func_open(pc_boom_t boomgate_protocol){
-        pthread_mutex_lock(&boomgate_protocol.lock);
-        if(boomgate_protocol.status == 'R'){
-            // change the status to "O" after 10 milli
-            sleeping_beauty(10);
-            boomgate_protocol.status = 'O';
-            //Make these functions WAIT for signal from manager
-            pthread_cond_wait(boomgate_protocol.cond, boomgate_protocol.mutex);
-        }
-        pthread_mutex_unlock(&boomgate_protocol.lock);
+// //Tell when to open boomgates
+// pc_boom_t boomgates;
+// void boomgate_func_open(pc_boom_t boomgate_protocol){
+//         pthread_mutex_lock(&boomgate_protocol.lock);
+//         if(boomgate_protocol.status == 'R'){
+//             // change the status to "O" after 10 milli
+//             sleeping_beauty(10);
+//             boomgate_protocol.status = 'O';
+//             //Make these functions WAIT for signal from manager
+//             pthread_cond_wait(boomgate_protocol.cond, boomgate_protocol.lock);
+//         }
+//         pthread_mutex_unlock(&boomgate_protocol.lock);
 
           
-}
+// }
 
-//Tell when to close boosmgates
-void boomgate_func_close(pc_boom_t boomgate_protocol){
-    pthread_mutex_lock(&boomgate_protocol.lock);
+// //Tell when to close boosmgates
+// void boomgate_func_close(pc_boom_t boomgate_protocol){
+//     pthread_mutex_lock(&boomgate_protocol.lock);
 
-        if(boomgate_protocol.status == 'L'){
-            // change the status to "O" after 10 milli
-            sleeping_beauty(10);
-            boomgate_protocol.status = 'C';
-        }
-        pthread_mutex_unlock(&boomgate_protocol.lock);
+//         if(boomgate_protocol.status == 'L'){
+//             // change the status to "O" after 10 milli
+//             sleeping_beauty(10);
+//             boomgate_protocol.status = 'C';
+//         }
+//         pthread_mutex_unlock(&boomgate_protocol.lock);
 
-}
+// }
 
-void boomgate_process(pc_boom_t boomgates){
-     //Probably very bad practice, will need to see
-    boomgate_func_open(boomgates);
-    usleep(20);
-    boomgate_func_close(boomgates);
-}
+// void boomgate_process(pc_boom_t boomgates){
+//      //Probably very bad practice, will need to see
+//     boomgate_func_open(boomgates);
+//     usleep(20);
+//     boomgate_func_close(boomgates);
+// }
 
 // add a car the the que for an entrance and trigger LPR if needed
 // if cars already exist within the que, lpr is already triggered and the list will be cleared
 void car_add(shared_data_t* data, char licence[6], int entry) {
-    car_entry_que[entry] = l_list_add(car_entry_que[entry], licence);
-    if (car_entry_que[entry]->next == NULL)
+    car_entry_queue[entry] = l_list_add(car_entry_queue[entry], licence);
+    if (car_entry_queue[entry]->next == NULL)
     {
         for (int8_t i = 5; i >= 0; i--) {
             data->entrances[entry].lpr.l_plate[i] = licence[i];
@@ -401,9 +401,28 @@ struct car_enty_struct {
     shared_data_t* data;
     int entry;
 };
+void boom_handler(p_enterance_t* ent){
+    while (1)
+    {
+        // wait until a car is waiting to begin the open cycle
+        while (ent->boom.status != 'R') {
+            pthread_cond_wait(&ent->boom.cond, & ent->boom.lock);
+        }
+        usleep(10000); // wait for gate to open
+        ent->boom.status = 'O';
+        printf("SET OPEN\n");
+        pthread_cond_broadcast(&ent->boom.cond);
+        while (ent->boom.status != 'L') {
+            pthread_cond_wait(&ent->boom.cond, & ent->boom.lock);
+        }
+        usleep(10000); // wait for gate to close
+        ent->boom.status = 'C';
+        printf("SET CLOSE\n");
+        ent->sign.display = '\0';
+        pthread_cond_broadcast(&ent->boom.cond);
+    }
+}
 
-
-// ensures all cars enter the carpark WIP
 void car_entry(car_entry_struct_t* input) {
     p_enterance_t* ent = &input->data->entrances[input->entry];
     pthread_mutex_lock(&ent->sign.lock);
@@ -414,16 +433,41 @@ void car_entry(car_entry_struct_t* input) {
             pthread_cond_wait(&ent->sign.cond, &ent->sign.lock);
         }
         if (ent->sign.display == 'X') {
-            // Turn car away
-            car_entry_que[input->entry] = l_list_remove(car_entry_que[input->entry]);
+            // Turn car away, car is deleted
+            car_entry_queue[input->entry] = l_list_remove(car_entry_queue[input->entry]);
         } else {
-            car_entry_que[input->entry] = l_list_remove(car_entry_que[input->entry]);
+            while (ent->boom.status == 'L') {
+                usleep(1000);
+            }
+            
+            // If a car is accepted this code will be reaced.
+            // Impletement way to determine state of gate before car is accepted
+            if (ent->boom.status == 'C' && ent->sign.display != '\0')
+            {
+                pthread_cond_broadcast(&ent->boom.cond);
+                // wait 1 ms to allow the threads to detect they are signaled before
+                // the display is cleared (doesn't effect timings)
+                // We might want to try to make this better later
+                usleep(1000);
+            }
+
+
+            while (ent->boom.status != 'O' && ent->sign.display != '\0') {
+                usleep(1000);
+            }
+            
+            // create car struct
+            if (ent->sign.display != '\0') {
+                car_entry_queue[input->entry] = l_list_remove(car_entry_queue[input->entry]);
+                printf("CAR IS IN\n");
+            }
         }
         ent->sign.display = '\0';
-        if (car_entry_que[input->entry]!= NULL) {
+        if (car_entry_queue[input->entry]!= NULL) {
             for (int8_t i = 5; i >= 0; i--) {
-                ent->lpr.l_plate[i] = car_entry_que[input->entry]->licence[i];
+                ent->lpr.l_plate[i] = car_entry_queue[input->entry]->licence[i];
             }
+            usleep(2000);
             pthread_cond_broadcast(&ent->lpr.cond);
         }
     }
@@ -445,30 +489,31 @@ int init_threads(thread_list_t* t_list, thread_var_t* t_var, shared_data_t* data
         &t_var->entrance_vars[i])){
             return EXIT_FAILURE;
         }
+        if (pthread_create(&t_list->entrance_threads[i], NULL, (void*)boom_handler,
+        &data->entrances[i])){
+            return EXIT_FAILURE;
+        }
     }
     return EXIT_SUCCESS;
 }
 
-protect_rand_t pr;
-pthread_mutex_inti(pr->lock);
+// void car_generator(protect_rand_t pr){
 
-void car_generator(protect_rand_t pr){
+//     int car_creation_time = random_car_creation_time(pr);
+//     usleep(car_creation_time);
 
-    int car_creation_time = random_car_creation_time(pr);
-    usleep(car_creation_time);
+//     car_t car; //Name needs to be dynamic
+//     char* plate = NULL;
+//     plate = "ABC123"; //Needs to be replaced with actual plate function
 
-    car_t car; //Name needs to be dynamic
-    char* plate = NULL;
-    plate = "ABC123"; //Needs to be replaced with actual plate function
-
-    time_t parking_time = random_parking_time(pr); //May need to change time_t to int may not need time_t
+//     time_t parking_time = random_parking_time(pr); //May need to change time_t to int may not need time_t
 
     
-    car_add(car, plate, parking_time);
-    free(plate;)
+//     // car_add(shm.data, plate, parking_time);
+//     // free(plate);
 
     
-}
+// }
 
 int main()
 {
@@ -477,6 +522,8 @@ int main()
     thread_var_t thread_vars;
     thread_list_t thread_lists;
 
+    protect_rand_t pr;
+    pthread_mutex_init(&pr.lock, NULL);
     // Create shared memory segment
     if(!create_shared_object(&sh_mem, SHM_NAME)){
         printf("Creation of shared memory failed\n");
@@ -497,18 +544,23 @@ int main()
     init_threads(&thread_lists, &thread_vars, sh_mem.data);
 
     getchar();
-
-
-    char temp_char2[6] = {'3', '4', '0', 'P', 'B', 'T'};
-    for (size_t j = 0; j < 101; j++)
-    {
-        car_add(sh_mem.data, temp_char2, 0);
-    }
-    
-    
-
-
+    char tempzz[6] = {'3', '7', '6', 'D', 'D', 'S'};
+    car_add(sh_mem.data, tempzz, 0);
+    car_add(sh_mem.data, tempzz, 0);
+    car_add(sh_mem.data, tempzz, 0);
+    car_add(sh_mem.data, tempzz, 0);
+    car_add(sh_mem.data, tempzz, 0);
+    car_add(sh_mem.data, tempzz, 0);
+    car_add(sh_mem.data, tempzz, 0);
+    car_add(sh_mem.data, tempzz, 0);
+    car_add(sh_mem.data, tempzz, 0);
+    car_add(sh_mem.data, tempzz, 0);
+    car_add(sh_mem.data, tempzz, 0);
+    car_add(sh_mem.data, tempzz, 0);
+    car_add(sh_mem.data, tempzz, 0);
+    car_add(sh_mem.data, tempzz, 0);
+    car_add(sh_mem.data, tempzz, 0);
     getchar();
-    
+
     return EXIT_SUCCESS;
 }

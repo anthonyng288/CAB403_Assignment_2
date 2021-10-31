@@ -63,7 +63,7 @@ typedef struct p_level
 {
     pc_lpr_t lpr;
     int16_t temp;
-    u_int8_t alarm;
+    volatile u_int8_t alarm;
     // char padding[5];
 
 } p_level_t;

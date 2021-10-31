@@ -33,6 +33,14 @@ pthread_mutex_t capacity_lock;
 int levels_fullness[LEVELS];
 double revenue;
 
+typedef struct car {
+    char* lp;
+    time_t enter_time;
+    int park_level;
+    bool validated;
+} car_t;
+
+car_t* car_array[LEVELS][LEVEL_CAPACITY];
 
 typedef struct var_entrance_manager var_entrance_manager_t;
 typedef struct thread_var thread_var_t;
@@ -57,17 +65,12 @@ typedef struct thread_list {
     pthread_t status_display_thread;
     pthread_t rand_temps_thread;
     pthread_t user_input_thread;
+    pthread_t boomgate_threads[ENTRANCES + EXITS];
 } thread_list_t;
-
 
 ////////////////////////////////
 ////           Car          ////
 ////////////////////////////////
-
-typedef struct car {
-    char* lp;
-    time_t enter_time;
-} car_t;
 
 // Calculates the bill for a car when they trigger the exit LPR
 void bill_car(car_t* car){
@@ -351,7 +354,15 @@ struct var_entrance_manager {
     p_enterance_t* ent;
     htab_t* h;
 };
-
+bool store_car_data (car_t* car) {
+    for(int i = 0; i < LEVEL_CAPACITY; i++){
+        if(car_array[car->park_level-1][i] == NULL) {
+            car_array[car->park_level-1][i] = car;
+            return true;
+        }
+    }
+    return false;
+}
 void entrance_lpr(var_entrance_manager_t* variables) {
     p_enterance_t* ent = variables->ent;
     htab_t* h = variables->h;
@@ -369,25 +380,29 @@ void entrance_lpr(var_entrance_manager_t* variables) {
             pthread_mutex_lock(&capacity_lock);
             if (car_count < parking_capacity){
                 car_count++;
-                printf("CURRENT CAP %d\n", car_count);
                 send_to_level = available_level();
                 pthread_mutex_unlock(&capacity_lock);
                 pthread_mutex_lock(&ent->sign.lock);
                 ent->sign.display = send_to_level;
                 pthread_mutex_unlock(&ent->sign.lock);
-
+                car_t* new_car = malloc(sizeof(car_t));
+                new_car->lp = (char*)ent->lpr.l_plate;
+                new_car->park_level = (int)send_to_level - '0';
+                new_car->enter_time = clock();
+                new_car->validated = false;
+                store_car_data(new_car);
             } else {
                 pthread_mutex_unlock(&capacity_lock);
                 pthread_mutex_lock(&ent->sign.lock);
                 ent->sign.display = 'X';
                 pthread_mutex_unlock(&ent->sign.lock);
             }
+            
         } else {
             pthread_mutex_lock(&ent->sign.lock);
             ent->sign.display = 'X';
             pthread_mutex_unlock(&ent->sign.lock);
         }
-        printf("%c\n", send_to_level);
         ent->lpr.l_plate[0] = '\0'; // reset lpr
         pthread_cond_signal(&ent->sign.cond);
     }
@@ -395,19 +410,43 @@ void entrance_lpr(var_entrance_manager_t* variables) {
 }
 
 // Functions waits until a boomgate is signaled then opens or closes it
-void manager_boomgate(pc_boom_t* boom){
-    while (!exit_condition) {
-        sleep(1);
+void manager_boomgate(p_enterance_t* ent){
+    pthread_mutex_lock(&ent->boom.lock);
+    while (shm.data->levels[0].alarm == 0)
+    {
+        // wait until a car is waiting to begin the open cycle
+        while (ent->sign.display == '\0' && shm.data->levels[0].alarm == 0) {
+            pthread_cond_wait(&ent->boom.cond, & ent->boom.lock);
+        }
+        if(shm.data->levels[0].alarm == 1) {
+            printf("alarm has been triggered");
+            break;
+        }
+        printf("no alarm has been detected");
+        ent->boom.status = 'R'; // set status rising
+        printf("SET RISING\n");
+        pthread_cond_broadcast(&ent->boom.cond);
+        // wait until sim changes status and signals
+        while (ent->boom.status == 'R') {
+            pthread_cond_wait(&ent->boom.cond, & ent->boom.lock);
+        }
+        usleep(20000); // boomgate hangs open
+        ent->boom.status = 'L';
+        printf("SET LOWERING\n");
+        pthread_cond_broadcast(&ent->boom.cond);
+        while (ent->boom.status == 'L') {
+            pthread_cond_wait(&ent->boom.cond, & ent->boom.lock);
+        }
     }
-    
+    printf("Manager_boomgate has stopped\n");
 }
 
 // Function updates the status_screen every 1sec
 void status_screen_thread(shared_mem_t* shm){
     while (!exit_condition) {
         status_display(levels_fullness, revenue, shm);
-        printf("ROR Fire: %s\n", rateOfRiseFire ? "True" : "False");
-        printf("FT Fire: %s\n", fixedTempFire ? "True" : "False");
+        // printf("ROR Fire: %s\n", rateOfRiseFire ? "True" : "False");
+        // printf("FT Fire: %s\n", fixedTempFire ? "True" : "False");
         sleep(1);
     }
 }
@@ -516,25 +555,29 @@ bool init_threads(thread_list_t* t_list, thread_var_t* t_var, htab_t* htab){
         &t_var->entrance_vars[i])){
             return EXIT_FAILURE;
         }
-        if(pthread_create(&t_list->status_display_thread, NULL, 
-        (void*)status_screen_thread, &shm)){
+    }
+    // Setup boomgates
+    for (size_t i = 0; i < ENTRANCES; i++){
+        if (pthread_create(&t_list->boomgate_threads[i], NULL, (void*)manager_boomgate,
+        &shm.data->entrances[i])){
             return EXIT_FAILURE;
         }
-        if(pthread_create(&t_list->rand_temps_thread, NULL, 
-        (void*)rand_temp_thread, &shm)){
-            return EXIT_FAILURE;
-        }
-        if(pthread_create(&t_list->user_input_thread, NULL, 
-        (void*)user_input_listener, &shm)){
-            return EXIT_FAILURE;
-        }
-
+    }
+    if(pthread_create(&t_list->status_display_thread, NULL, 
+    (void*)status_screen_thread, &shm)){
+        return EXIT_FAILURE;
+    }
+    if(pthread_create(&t_list->rand_temps_thread, NULL, 
+    (void*)rand_temp_thread, &shm)){
+        return EXIT_FAILURE;
+    }
+    if(pthread_create(&t_list->user_input_thread, NULL, 
+    (void*)user_input_listener, &shm)){
+        return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;
 }
 
-
-    // entrance setup
 int main(){
     // Access shared memory
     if (!get_shared_object(&shm, SHM_NAME))

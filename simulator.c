@@ -25,10 +25,12 @@ volatile void *shm;
 pthread_mutex_t alarm_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t alarm_condvar = PTHREAD_COND_INITIALIZER;
 
-typedef struct car {
+typedef struct car car_t;
+struct car {
     char* lp;
-    time_t enter_time;
-} car_t;
+    int parking_time;
+    int level;
+};
 
 
 // Takes the time required (millisecons)
@@ -262,6 +264,15 @@ int random_car_creation_time(protect_rand_t pr){
     return creation_time;
 }
 
+int random_entry(protect_rand_t pr){
+    //lock mutex
+    pthread_mutex_lock(&pr.lock);
+    int entry = rand() % 5+1;
+    pthread_mutex_unlock(&pr.lock);
+    
+    return entry;
+}
+
 //if the car plate is random
 //License plates from the hash table are 3 numbers then 3
 //letters so we will asume that format
@@ -301,25 +312,52 @@ char * unauthorised_plate(protect_rand_t pr){
 }
 
 
+int number_of_lines(const char *input){
+    int lines;
+    FILE * text;
+    text = fopen(input, "r");
+    while (EOF != (fscanf(text, "%*[^\n]"), fscanf(text,"%*c")))
+        ++lines;
+    return lines;
+}
+
+
 // Random authorised car
 // Assume that there is no repeat cars
-/*char* authorised_plate(htab_t *h, protect_rand_t pr){
+char* authorised_plate(int lines, const char *input, protect_rand_t pr){
    
-    // choose random bucket number
+    // choose random line number
     pthread_mutex_lock(&pr.lock);
-    int num = rand() % h->size;
+    int lineNumber = rand() % lines;
     pthread_mutex_unlock(&pr.lock);
 
-    // get plate from such bucket
-    item_t random_item = h->buckets[num];
+    // Grab from the line
+    FILE * text  = fopen(input, "r");
+    int count = 0;
+    if ( text != NULL )
+    {
+        char *line = malloc (6);
+        while (fgets(line, sizeof line, text) != NULL) 
+        {
+            if (count == lineNumber)
+            {
 
-    char* plate =  malloc(6);
-    plate = random_item ->value;
-
+                fclose(text);
+                return line;
+            }
+            else
+            {
+                count++;
+            }
+        }
+    }
+    fclose(text);
+    return 0;
+    
 }
 
 // Random license plate authorised or unauthorised
-char* random_license_plate(htab_t *h, protect_rand_t pr){
+char* random_license_plate(const char* input, protect_rand_t pr){
     //lock mutex
     pthread_mutex_lock(&pr.lock);
     //Randomise if the car will have a valid license plate from hash table or a random plate
@@ -332,56 +370,32 @@ char* random_license_plate(htab_t *h, protect_rand_t pr){
     //char digits[10] = {"0123456789"};
     
     
-    if (valid == 0){car_entry
+    if (valid == 0){
         plate = unauthorised_plate(pr);
     }
-    //if from the hash table
+    //if from the file
     else {
-        //plate from hash table
-        plate = authorised_plate(h, pr);
+        int lines = number_of_lines(input);
+        //plate from file
+        plate = authorised_plate( lines,input,pr);
     }
     return plate;
-}*/
+}
 
-////////////////////////////////
-////       Boomgates        ////
-///////////////////////////////
+/*
+    EXAMPLE OF CALLING THE FUNCTION
+    char tempzz[6] = {'3', '7', '6', 'D', 'D', 'S'};
+    car_add(sh_mem.data, tempzz, 0);
 
-// //Tell when to open boomgates
-// pc_boom_t boomgates;
-// void boomgate_func_open(pc_boom_t boomgate_protocol){
-//         pthread_mutex_lock(&boomgate_protocol.lock);
-//         if(boomgate_protocol.status == 'R'){
-//             // change the status to "O" after 10 milli
-//             sleeping_beauty(10);
-//             boomgate_protocol.status = 'O';
-//             //Make these functions WAIT for signal from manager
-//             pthread_cond_wait(boomgate_protocol.cond, boomgate_protocol.lock);
-//         }
-//         pthread_mutex_unlock(&boomgate_protocol.lock);
+    PERAMS:
+        data: address to the shared data segment
+        licence: 6 chars with the licence plate of the car to be added
+        entry: the index of the entrance that the car will queue at
 
-          
-// }
-
-// //Tell when to close boosmgates
-// void boomgate_func_close(pc_boom_t boomgate_protocol){
-//     pthread_mutex_lock(&boomgate_protocol.lock);
-
-//         if(boomgate_protocol.status == 'L'){
-//             // change the status to "O" after 10 milli
-//             sleeping_beauty(10);
-//             boomgate_protocol.status = 'C';
-//         }
-//         pthread_mutex_unlock(&boomgate_protocol.lock);
-
-// }
-
-// void boomgate_process(pc_boom_t boomgates){
-//      //Probably very bad practice, will need to see
-//     boomgate_func_open(boomgates);
-//     usleep(20);
-//     boomgate_func_close(boomgates);
-// }
+    The car is created and automatically queues to enter then enters when
+    it can. No information about the car queueing is stored in the 
+    simulator yet. A struct is created and stored in the manager
+*/
 
 // add a car the the que for an entrance and trigger LPR if needed
 // if cars already exist within the que, lpr is already triggered and the list will be cleared
@@ -395,6 +409,18 @@ void car_add(shared_data_t* data, char licence[6], int entry) {
         pthread_cond_broadcast(&data->entrances[entry].lpr.cond);
     }
 }
+
+void car_generator(protect_rand_t pr, shared_data_t* data, const char *input){
+    int car_creation_time = random_car_creation_time(pr);
+    usleep(car_creation_time);
+    
+   
+    char* plate = NULL;
+    plate = random_license_plate(input, pr); 
+    int entry = random_entry(pr);
+    car_add(data, plate, entry);
+
+} 
 
 typedef struct car_enty_struct car_entry_struct_t;
 struct car_enty_struct {
@@ -473,15 +499,30 @@ void car_entry(car_entry_struct_t* input) {
     }
     pthread_mutex_unlock(&ent->sign.lock);
 }
+
+typedef struct car_generator_struct car_generator_struct_t;
+struct car_generator_struct {
+    shared_data_t* data;
+    protect_rand_t pr;
+    const char *input;
+};
+
 typedef struct thread_var {
     car_entry_struct_t entrance_vars[ENTRANCES];
+    car_generator_struct_t car_generator_vars;
 } thread_var_t;
 
 typedef struct thread_list {
     pthread_t entrance_threads[ENTRANCES];
+    pthread_t car_creation_thread;
 } thread_list_t;
 
 int init_threads(thread_list_t* t_list, thread_var_t* t_var, shared_data_t* data){
+    if (pthread_create(&t_list->car_creation_thread, NULL, (void*)car_generator,
+        &t_var->car_generator_vars)){
+            return EXIT_FAILURE;
+        }
+    
     for (int i = 0; i < ENTRANCES; i++) {
         t_var->entrance_vars[i].data = data;
         t_var->entrance_vars[i].entry = i;

@@ -18,6 +18,7 @@
 // Global variables
 
 int shm_fd;
+char recent_ent_lpr[ENTRANCES][6];
 // shared_mem_t sh_mem; // shared memory
 
 int shm_fd;
@@ -27,11 +28,17 @@ pthread_cond_t alarm_condvar = PTHREAD_COND_INITIALIZER;
 
 typedef struct car car_t;
 struct car {
-    char* lp;
+    char lp[6];
     int parking_time;
     int level;
+    shared_data_t* data;
 };
 
+typedef struct thread_list {
+    pthread_t entrance_threads[ENTRANCES];
+    pthread_t car_creation_thread;
+    pthread_t car_parking_time[LEVELS * LEVEL_CAPACITY];
+} thread_list_t;
 
 // Takes the time required (millisecons)
 // and multiplies it (in case we want to make it slower for testing)
@@ -405,6 +412,7 @@ void car_add(shared_data_t* data, char licence[6], int entry) {
     {
         for (int8_t i = 5; i >= 0; i--) {
             data->entrances[entry].lpr.l_plate[i] = licence[i];
+            recent_ent_lpr[entry][i] = licence[i];
         }
         pthread_cond_broadcast(&data->entrances[entry].lpr.cond);
     }
@@ -425,6 +433,7 @@ void car_generator(protect_rand_t pr, shared_data_t* data, const char *input){
 typedef struct car_enty_struct car_entry_struct_t;
 struct car_enty_struct {
     shared_data_t* data;
+    thread_list_t* t_list;
     int entry;
 };
 void boom_handler(p_enterance_t* ent){
@@ -436,30 +445,69 @@ void boom_handler(p_enterance_t* ent){
         }
         usleep(10000); // wait for gate to open
         ent->boom.status = 'O';
-        printf("SET OPEN\n");
         pthread_cond_broadcast(&ent->boom.cond);
         while (ent->boom.status != 'L') {
             pthread_cond_wait(&ent->boom.cond, & ent->boom.lock);
         }
         usleep(10000); // wait for gate to close
         ent->boom.status = 'C';
-        printf("SET CLOSE\n");
         ent->sign.display = '\0';
         pthread_cond_broadcast(&ent->boom.cond);
     }
 }
 
+
+void car_timings(car_t* car) {
+    printf("ENTERED FUNCTION\n");
+    // go to the level lpr
+    usleep(10000);
+    // trigger level lpr
+
+    pthread_mutex_lock(&car->data->levels[car->level].lpr.lock);
+    printf("Locked mutex\n");
+
+    for (int i = 0; i < 6; i++) {
+        car->data->levels[car->level].lpr.l_plate[i] = car->lp[i];
+        printf("%c", car->data->levels[car->level].lpr.l_plate[i]);
+    }
+    printf("\n");
+    printf("triggered LPRs on entrance\n");
+
+    // pthread_cond_broadcast(&car->data->levels[car->level].lpr.cond);
+    printf("Cond should've be sent...\n");
+    
+    
+    // Sleep for random time
+    /*usleep(car->parking_time);
+    printf("after usleep(car->parking_time)\n");*/
+    // trigger level lrp
+    // pthread_mutex_lock(&car->data->levels[car->level].lpr.lock);
+    // for (int i = 0; i < 6; i++) {
+    //     car->data->levels[car->level].lpr.l_plate[i] = car->lp[i];
+    // }
+    // printf("triggered LPRs on exit\n");
+
+    // pthread_mutex_unlock(&car->data->levels[car->level].lpr.lock);
+    // pthread_cond_broadcast(&car->data->levels[car->level].lpr.cond);
+    // // go to exit
+    // usleep(10000);
+
+    // trigger exit
+    // determine random exit
+    // billing 
+    pthread_mutex_unlock(&car->data->levels[car->level].lpr.lock);
+}
 void car_entry(car_entry_struct_t* input) {
     p_enterance_t* ent = &input->data->entrances[input->entry];
     pthread_mutex_lock(&ent->sign.lock);
+    protect_rand_t pr;
     while (1)
     {
         while (ent->sign.display == '\0') {
             
             pthread_cond_wait(&ent->sign.cond, &ent->sign.lock);
         }
-        if (ent->sign.display == 'X') {
-            // Turn car away, car is deleted
+        if (ent->sign.display == 'X' || input->data->levels[0].alarm == 1) { // Turn car away, car is deleinputinput.data.->dartatadata..->levels[]0].alar.alarm == 1);;).,
             car_entry_queue[input->entry] = l_list_remove(car_entry_queue[input->entry]);
         } else {
             while (ent->boom.status == 'L') {
@@ -479,11 +527,38 @@ void car_entry(car_entry_struct_t* input) {
 
 
             while (ent->boom.status != 'O' && ent->sign.display != '\0') {
+                // create car thread
+                // assign variables
+                // detatch thread
                 usleep(1000);
             }
             
             // create car struct
             if (ent->sign.display != '\0') {
+                // create car struct
+                car_t* car = malloc(sizeof(car_t));
+                car->level = (int)(ent->sign.display - '0');
+                car->parking_time = random_parking_time(pr);
+                car->data = input->data;
+                for (int i = 0; i < 6; i++) {
+                    car->lp[i] = recent_ent_lpr[input->entry][i];
+                }
+                // create thread/ detatch thread
+                int thread_index = 0;
+                for(int i = 0; i < (LEVELS * LEVEL_CAPACITY); i++) {
+                    if (&input->t_list->car_parking_time[i] == NULL){
+                        thread_index = i;
+                        break;
+                    }
+                }
+                printf("%d", thread_index);
+                // car_timings(car);
+                // if (pthread_create(&input->t_list->car_parking_time[thread_index], NULL, (void*)car_timings,
+                //     car)){
+                //         return;
+                //     }
+
+                
                 car_entry_queue[input->entry] = l_list_remove(car_entry_queue[input->entry]);
                 printf("CAR IS IN\n");
             }
@@ -492,6 +567,7 @@ void car_entry(car_entry_struct_t* input) {
         if (car_entry_queue[input->entry]!= NULL) {
             for (int8_t i = 5; i >= 0; i--) {
                 ent->lpr.l_plate[i] = car_entry_queue[input->entry]->licence[i];
+                recent_ent_lpr[input->entry][i] = car_entry_queue[input->entry]->licence[i];
             }
             usleep(2000);
             pthread_cond_broadcast(&ent->lpr.cond);
@@ -512,10 +588,7 @@ typedef struct thread_var {
     car_generator_struct_t car_generator_vars;
 } thread_var_t;
 
-typedef struct thread_list {
-    pthread_t entrance_threads[ENTRANCES];
-    pthread_t car_creation_thread;
-} thread_list_t;
+
 
 int init_threads(thread_list_t* t_list, thread_var_t* t_var, shared_data_t* data){
     if (pthread_create(&t_list->car_creation_thread, NULL, (void*)car_generator,
@@ -535,26 +608,12 @@ int init_threads(thread_list_t* t_list, thread_var_t* t_var, shared_data_t* data
             return EXIT_FAILURE;
         }
     }
+    // if (pthread_create(&t_list->car_creation_thread, NULL, (void*)car_generator,
+    //     &t_var->car_generator_vars)){
+    //         return EXIT_FAILURE;
+    //     }
     return EXIT_SUCCESS;
 }
-
-// void car_generator(protect_rand_t pr){
-
-//     int car_creation_time = random_car_creation_time(pr);
-//     usleep(car_creation_time);
-
-//     car_t car; //Name needs to be dynamic
-//     char* plate = NULL;
-//     plate = "ABC123"; //Needs to be replaced with actual plate function
-
-//     time_t parking_time = random_parking_time(pr); //May need to change time_t to int may not need time_t
-
-    
-//     // car_add(shm.data, plate, parking_time);
-//     // free(plate);
-
-    
-// }
 
 int main()
 {
@@ -572,7 +631,6 @@ int main()
     if (!init_all(sh_mem.data)) {
         printf("Initialization failed\n");
     }
-
     
     // Testing random license generator
     // protect_rand_t pr= PTHREAD_MUTEX_INITIALIZER;
@@ -587,20 +645,7 @@ int main()
     getchar();
     char tempzz[6] = {'3', '7', '6', 'D', 'D', 'S'};
     car_add(sh_mem.data, tempzz, 0);
-    car_add(sh_mem.data, tempzz, 0);
-    car_add(sh_mem.data, tempzz, 0);
-    car_add(sh_mem.data, tempzz, 0);
-    car_add(sh_mem.data, tempzz, 0);
-    car_add(sh_mem.data, tempzz, 0);
-    car_add(sh_mem.data, tempzz, 0);
-    car_add(sh_mem.data, tempzz, 0);
-    car_add(sh_mem.data, tempzz, 0);
-    car_add(sh_mem.data, tempzz, 0);
-    car_add(sh_mem.data, tempzz, 0);
-    car_add(sh_mem.data, tempzz, 0);
-    car_add(sh_mem.data, tempzz, 0);
-    car_add(sh_mem.data, tempzz, 0);
-    car_add(sh_mem.data, tempzz, 0);
+    sleep(100);
     getchar();
 
     return EXIT_SUCCESS;

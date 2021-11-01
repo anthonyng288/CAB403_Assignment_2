@@ -2,15 +2,17 @@ CC = gcc
 CFLAGS = -lrt -lpthread -Werror -Wall -g
 LDFLAGS = -lrt -lpthread
 
-all: simulator management_system new_firealarm new_firealarm2	
+all: simulator management_system 
+# new_firealarm new_firealarm2	
 
-new_firealarm: new_firealarm.o
+# new_firealarm: new_firealarm.o
 
-new_firealarm.o: new_firealarm.c
+# new_firealarm.o: new_firealarm.c
+
 
 new_firealarm2: new_firealarm2.o
 
-new_firealarm2.o: new_firealarm2.c
+new_firealarm2.o: new_firealarm2.c# new_firealarm2.o: new_firealarm2.c
 
 simulator: simulator.o
 

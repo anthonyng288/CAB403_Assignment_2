@@ -17,10 +17,6 @@
 #include "status_display.c"
 #include "rand_temp.c"
 
-
-
-
-
 // Global variables
 shared_mem_t shm; // shared memory
 bool exit_condition = false; // exit condition
@@ -32,6 +28,7 @@ volatile int car_count = 0;
 pthread_mutex_t capacity_lock;
 int levels_fullness[LEVELS];
 double revenue;
+
 
 typedef struct car {
     char* lp;
@@ -61,7 +58,8 @@ bool get_shared_object( shared_mem_t* shm, const char* share_name ){
 
 typedef struct thread_list {
     pthread_t entrance_threads[ENTRANCES];
-    pthread_t lpr_threads[ENTRANCES]; // only entrance implemented
+    pthread_t exit_threads[EXITS]; // only entrance implemented
+    pthread_t level_threads[LEVELS];
     pthread_t status_display_thread;
     pthread_t rand_temps_thread;
     pthread_t user_input_thread;
@@ -352,6 +350,7 @@ char entry_message( bool search_plate, bool cp_has_space){
 
 struct var_entrance_manager {
     p_enterance_t* ent;
+    int index;
     htab_t* h;
 };
 bool store_car_data (car_t* car) {
@@ -363,6 +362,57 @@ bool store_car_data (car_t* car) {
     }
     return false;
 }
+
+typedef struct var_level_manager
+{
+      p_level_t* level;
+      int level_index;  
+} var_level_manager_t;
+typedef struct var_exit_manager
+{
+    p_exit_t* exit;
+        
+} var_exit_manager_t;
+
+// compare 2 lprs return true if they're the same
+bool compare_lp(volatile char input1[6],char input2[6]){
+    for (int i = 0; i < 6; i++) {
+        if (input1[i] != input2[i]) return false;
+    }
+    return true;
+}
+
+void level_lpr(var_level_manager_t* var){
+    pthread_mutex_lock(&var->level->lpr.lock);
+    printf("BYPASSED WAIT\n");
+    while (1)
+    {
+        while (var->level->lpr.l_plate[0] == '\0')
+        {
+            printf("BEGIN WAIT\n");
+            pthread_cond_wait(&var->level->lpr.cond, &var->level->lpr.lock);
+            printf("END WAIT\n");
+        }
+        
+        int car_pos = 0;
+        for (int i = 0; i < LEVEL_CAPACITY; i++) {
+            
+            if (compare_lp(var->level->lpr.l_plate, car_array[var->level_index][i]->lp)) {
+                car_pos = i;
+                break;
+            }
+        }       
+
+        if (car_array[var->level_index][car_pos]->validated ) {
+            // remove car from data and free space
+        } else {
+            car_array[var->level_index][car_pos]->validated = 1;
+            printf("CAR VALIDATED");
+        }
+    }
+}
+
+
 void entrance_lpr(var_entrance_manager_t* variables) {
     p_enterance_t* ent = variables->ent;
     htab_t* h = variables->h;
@@ -419,12 +469,9 @@ void manager_boomgate(p_enterance_t* ent){
             pthread_cond_wait(&ent->boom.cond, & ent->boom.lock);
         }
         if(shm.data->levels[0].alarm == 1) {
-            printf("alarm has been triggered");
             break;
         }
-        printf("no alarm has been detected");
         ent->boom.status = 'R'; // set status rising
-        printf("SET RISING\n");
         pthread_cond_broadcast(&ent->boom.cond);
         // wait until sim changes status and signals
         while (ent->boom.status == 'R') {
@@ -432,13 +479,11 @@ void manager_boomgate(p_enterance_t* ent){
         }
         usleep(20000); // boomgate hangs open
         ent->boom.status = 'L';
-        printf("SET LOWERING\n");
         pthread_cond_broadcast(&ent->boom.cond);
         while (ent->boom.status == 'L') {
             pthread_cond_wait(&ent->boom.cond, & ent->boom.lock);
         }
     }
-    printf("Manager_boomgate has stopped\n");
 }
 
 // Function updates the status_screen every 1sec
@@ -544,18 +589,40 @@ void sleeping_beauty(int seconds){
 
 struct thread_var {
     var_entrance_manager_t entrance_vars[ENTRANCES];
+    var_level_manager_t level_vars[LEVELS];
+    var_exit_manager_t exit_vars[EXITS];
 };
 
 bool init_threads(thread_list_t* t_list, thread_var_t* t_var, htab_t* htab){
-    // Setup boomgates
+    // Setup LPRS
+    // Entrance LPRs
     for (size_t i = 0; i < ENTRANCES; i++){
         t_var->entrance_vars[i].ent = &shm.data->entrances[i];
         t_var->entrance_vars[i].h = htab;
+        t_var->entrance_vars[i].index = i;
         if (pthread_create(&t_list->entrance_threads[i], NULL, (void*)entrance_lpr,
         &t_var->entrance_vars[i])){
             return EXIT_FAILURE;
         }
     }
+    // Level LPRs
+    for (size_t i = 0; i < LEVELS; i++){
+        t_var->level_vars[i].level = &shm.data->levels[i];
+        t_var->level_vars[i].level_index = i;
+        shm.data->levels[i].lpr.l_plate[0] = '\0';
+        if (pthread_create(&t_list->level_threads[i], NULL, (void*)level_lpr,
+        &t_var->level_vars[i])){
+            return EXIT_FAILURE;
+        }
+    }
+    // Exit LPRs
+    // for (size_t i = 0; i < EXITS; i++){
+    //     t_var->exit_vars[i].exit->lpr = shm.data->exits[i].lpr;
+    //     if (pthread_create(&t_list->exit_threads[i], NULL, (void*)exit_lpr,
+    //     &t_var->exit_vars[i])){
+    //         return EXIT_FAILURE;
+    //     }
+    // }
     // Setup boomgates
     for (size_t i = 0; i < ENTRANCES; i++){
         if (pthread_create(&t_list->boomgate_threads[i], NULL, (void*)manager_boomgate,
@@ -586,7 +653,7 @@ int main(){
     }
     
     parking_capacity = LEVEL_CAPACITY * LEVELS;
-    printf("CAP: %d\n", parking_capacity);
+    // printf("CAP: %d\n", parking_capacity);
 
     // Setup for hash table and insert file contents
     htab_t hasht;
@@ -617,7 +684,7 @@ int main(){
 
     
     // Wait until program closes
-    printf("Press ENTER to close the manager\n");
+    // printf("Press ENTER to close the manager\n");
     getchar();
  
     // Memory cleanup
